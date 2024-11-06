@@ -12,6 +12,11 @@ const config: Config = {
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
+      textShadow: {
+        'white-sm': '1px 1px 2px rgba(255, 255, 255, 0.8)',
+        'white-md': '2px 2px 4px rgba(255, 255, 255, 0.8)',
+        'white-lg': '3px 3px 6px rgba(255, 255, 255, 0.8)',
+      }
     },
   },
   plugins: [],
