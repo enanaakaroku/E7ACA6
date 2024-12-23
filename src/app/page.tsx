@@ -1,11 +1,12 @@
 import { EditPanel } from "@/components/EditPanel";
+import { Inspector } from "@/components/Inspector";
 
 export default function Home() {
 	return (
-		<div>
-			<main>
-				<EditPanel></EditPanel>
-			</main>
+		<div className="grid h-screen place-items-center">
+			<div className="border h-[400px] w-[900px]">
+				<Inspector></Inspector>
+			</div>
 		</div>
 	);
 }
