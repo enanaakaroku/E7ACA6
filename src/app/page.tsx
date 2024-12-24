@@ -1,4 +1,3 @@
-import { EditPanel } from "@/components/EditPanel";
 import { Inspector } from "@/components/Inspector";
 
 export default function Home() {
