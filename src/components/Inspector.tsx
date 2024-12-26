@@ -7,12 +7,16 @@ import { setElementsKey } from "@/utils/pub";
 
 type TInspectorContext = {
 	componentList: Array<React.FC>;
-	rteChildren?: Array<HTMLElement>;
+	rteChildren?: Array<rteHTMLElement>;
 };
 
 const contextInitValue = {
 	componentList: [RectComponent],
 };
+
+interface rteHTMLElement extends HTMLElement {
+	removeEditorControls?: () => void;
+}
 
 const createResizeHandleElement = () => {
 	const span = document.createElement("p");
@@ -25,23 +29,19 @@ const createMoveHandleElement = () => {
 	const span = document.createElement("p");
 	span.setAttribute("data-handle-type", "move");
 	span.setAttribute("class", "absolute w-4 h-2 bg-slate-600 left-1/2 -top-1 cursor-move");
-
 	return span;
 };
 
-const addEditorControls = (element: HTMLElement) => {
+const addEditorControls = (element: rteHTMLElement) => {
 	element.classList.add("relative", "border-2");
 	const resizeHandle = createResizeHandleElement();
 	const moveHandle = createMoveHandleElement();
 	element.appendChild(resizeHandle);
 	element.appendChild(moveHandle);
-
-	return {
-		remove() {
-			element.classList.remove("relative", "border-2");
-			element.removeChild(resizeHandle);
-			element.removeChild(moveHandle);
-		},
+	element.removeEditorControls = () => {
+		element.classList.remove("relative", "border-2");
+		element.removeChild(resizeHandle);
+		element.removeChild(moveHandle);
 	};
 };
 
@@ -50,7 +50,7 @@ export const InspectorContext = createContext<TInspectorContext>(contextInitValu
 export const Inspector = ({ children }: { children?: ReactNode }) => {
 	const rteContainer = useRef<HTMLElement>(null);
 	const [rteChildren, setRteChildren] = useState<HTMLElement[]>([]);
-	const [highlightedElement, setHighlightedElement] = useState<HTMLElement | null>(null);
+	const [editingElement, setEditingElement] = useState<HTMLElement | null>(null);
 	const [isMoving, setisMoving] = useState<boolean>(false);
 	useEffect(() => {
 		const observer = new MutationObserver((mutations) => {
@@ -79,19 +79,23 @@ export const Inspector = ({ children }: { children?: ReactNode }) => {
 	}, []);
 
 	const handleEditElement = (event: React.MouseEvent<HTMLElement>) => {
-		if (!(event.target instanceof HTMLElement)) return;
+		const target = event.target as rteHTMLElement;
 		event.preventDefault();
 		setisMoving(true);
-		console.dir(event.target);
-		console.dir(event.target.parentElement);
+		console.dir(target);
+		console.dir(target.parentElement);
 		// 点击可编辑区域
-		if (event.target.parentElement === event.currentTarget) {
+		if (target.parentElement === event.currentTarget) {
 			// 唤出操作句柄
-			const editorControls = addEditorControls(event.target);
+
+			addEditorControls(target);
+			if (target !== editingElement) {
+			}
+			setEditingElement(target);
 		}
 
 		// 点击操作句柄
-		if (event.target.dataset.handleType) {
+		if (target.dataset.handleType) {
 		}
 
 		const startX = event.clientX;
