@@ -1,3 +1,4 @@
+"use client";
 import { Inspector } from "@/components/Inspector";
 
 export default function Home() {

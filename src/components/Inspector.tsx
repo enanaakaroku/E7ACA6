@@ -3,20 +3,21 @@ import { RectComponent } from "./RectComponent";
 
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { setElementsKey } from "@/utils/pub";
+import { throttle } from "lodash";
+import { getMousePositionInElementArea, insertAfter } from "@/utils/pub";
 
 type TInspectorContext = {
 	componentList: Array<React.FC>;
-	rteChildren?: Array<rteHTMLElement>;
+	rteChildren?: Array<HTMLElement>;
 };
 
 const contextInitValue = {
 	componentList: [RectComponent],
 };
 
-interface rteHTMLElement extends HTMLElement {
-	removeEditorControls?: () => void;
-}
+type TEditorControls = {
+	removeEditorControls: () => void;
+};
 
 const createResizeHandleElement = () => {
 	const span = document.createElement("p");
@@ -32,16 +33,141 @@ const createMoveHandleElement = () => {
 	return span;
 };
 
-const addEditorControls = (element: rteHTMLElement) => {
+const addEditorControls = (element: HTMLElement): TEditorControls => {
 	element.classList.add("relative", "border-2");
 	const resizeHandle = createResizeHandleElement();
 	const moveHandle = createMoveHandleElement();
 	element.appendChild(resizeHandle);
 	element.appendChild(moveHandle);
-	element.removeEditorControls = () => {
-		element.classList.remove("relative", "border-2");
-		element.removeChild(resizeHandle);
-		element.removeChild(moveHandle);
+	return {
+		removeEditorControls() {
+			element.classList.remove("relative", "border-2");
+			element.removeChild(resizeHandle);
+			element.removeChild(moveHandle);
+		},
+	};
+};
+const checkRowFlexElement = (element: HTMLElement) => {
+	const style = window.getComputedStyle(element);
+	return (
+		(style.display === "flex" || style.display === "inline-flex") &&
+		style.flexDirection !== "column" &&
+		style.flexDirection !== "column-reverse"
+	);
+};
+const insertBeforeFlexElement = (referenceElement: HTMLElement, innerElement: HTMLElement[]) => {
+	const div = document.createElement("div");
+	div.style.display = "flex";
+	if (!referenceElement.parentElement) return;
+	referenceElement.parentElement.insertBefore(div, referenceElement);
+	for (const el of innerElement) {
+		div.appendChild(el);
+	}
+};
+
+const resizeHandleEvent = (mouseDownEvent: MouseEvent, handle: HTMLElement) => {
+	const controlingElement = handle.parentElement;
+	const startX = mouseDownEvent.clientX;
+	const startY = mouseDownEvent.clientY;
+	const startWidth = controlingElement?.offsetWidth || 0;
+	const startHeight = controlingElement?.offsetHeight || 0;
+	return {
+		mouseMove(mouseMoveEvent: MouseEvent) {
+			if (!controlingElement) return;
+			const newWidth = Math.max(0, startWidth + (mouseMoveEvent.clientX - startX));
+			const newHeight = Math.max(0, startHeight + (mouseMoveEvent.clientY - startY));
+			controlingElement.style.width = `${newWidth}px`;
+			controlingElement.style.height = `${newHeight}px`;
+		},
+		mouseUp(mouseUpEvent: MouseEvent) {},
+	};
+};
+
+const moveHandleEvent = (mouseDownEvent: MouseEvent, handle: HTMLElement) => {
+	const startX = mouseDownEvent.clientX;
+	const startY = mouseDownEvent.clientY;
+	const rteContainer = mouseDownEvent.currentTarget;
+	const controlingElement = handle.parentElement;
+	let lastTargetElement: HTMLElement | null = null;
+	let insertArea: "l" | "r" | "t" | "b" | null = null;
+	return {
+		mouseMove(mouseMoveEvent: MouseEvent) {
+			if (!controlingElement) return;
+			if (!rteContainer) return;
+
+			const mx = mouseMoveEvent.clientX - startX;
+			const my = mouseMoveEvent.clientY - startY;
+			controlingElement.style.pointerEvents = "none";
+			controlingElement.style.translate = `${mx}px ${my}px`;
+
+			const targetElement = mouseMoveEvent.target as HTMLElement;
+			// 底下的元素是可编辑块 // move只能移动至同级的元素周围
+			if (targetElement.parentElement !== controlingElement.parentElement) return;
+			if (lastTargetElement && lastTargetElement !== targetElement) {
+				lastTargetElement.style.backgroundColor = "";
+				lastTargetElement.style.border = "";
+			}
+			const mouseArea = getMousePositionInElementArea(mouseMoveEvent, targetElement);
+			insertArea = mouseArea;
+			targetElement.style.border = "";
+			targetElement.style.backgroundColor = "#cccccc";
+			switch (mouseArea) {
+				case "l":
+					targetElement.style.borderLeft = "2px solid orange";
+					break;
+				case "r":
+					targetElement.style.borderRight = "2px solid orange";
+					break;
+				case "b":
+					targetElement.style.borderBottom = "2px solid orange";
+					break;
+				case "t":
+					targetElement.style.borderTop = "2px solid orange";
+					break;
+				default:
+					console.error("未判定区域");
+			}
+			lastTargetElement = targetElement;
+		},
+		mouseUp(mouseUpEvent: MouseEvent) {
+			if (!controlingElement) return;
+			if (!rteContainer) return;
+			const targetElement = mouseUpEvent.target as HTMLElement;
+			if (targetElement.parentElement !== controlingElement.parentElement) {
+				controlingElement.style.pointerEvents = "none";
+				controlingElement.style.translate = "";
+        return;
+			}
+      if (target.parentElement && lastMoveTargetElement && lastMoveTargetElement.parentElement) {
+        const targetElementParent = lastMoveTargetElement.parentElement;
+        const movingElement = target.parentElement;
+
+        switch (insertArea) {
+          case "l":
+            if (!checkRowFlexElement(targetElementParent)) {
+              insertBeforeFlexElement(lastMoveTargetElement, [
+                movingElement,
+                lastMoveTargetElement,
+              ]);
+            }
+            break;
+          case "r":
+            if (!checkRowFlexElement(targetElementParent)) {
+              insertBeforeFlexElement(lastMoveTargetElement, [
+                lastMoveTargetElement,
+                movingElement,
+              ]);
+            }
+            break;
+          case "b":
+            insertAfter(movingElement, lastMoveTargetElement);
+            break;
+          case "t":
+            targetElementParent.insertBefore(movingElement, lastMoveTargetElement);
+            break;
+          default:
+            console.error("着陆失败");
+		},
 	};
 };
 
@@ -51,98 +177,123 @@ export const Inspector = ({ children }: { children?: ReactNode }) => {
 	const rteContainer = useRef<HTMLElement>(null);
 	const [rteChildren, setRteChildren] = useState<HTMLElement[]>([]);
 	const [editingElement, setEditingElement] = useState<HTMLElement | null>(null);
+	const [editingControls, setEditingControls] = useState<TEditorControls | null>(null);
 	const [isMoving, setisMoving] = useState<boolean>(false);
-	useEffect(() => {
-		const observer = new MutationObserver((mutations) => {
-			mutations.forEach((mutation) => {
-				if (rteContainer.current) {
-					const childNodes = Array.from(rteContainer.current?.children ?? []) as HTMLElement[];
-
-					setRteChildren(setElementsKey(childNodes));
-					console.log(childNodes);
-				}
-			});
-		});
-		if (rteContainer.current) {
-			// 开始监听容器
-			observer.observe(rteContainer.current, {
-				childList: true, // 监听子元素的变化
-				subtree: true, // 不监听子元素的嵌套子元素
-			});
-
-			const childNodes = Array.from(rteContainer.current.children ?? []) as HTMLElement[];
-			setRteChildren(setElementsKey(childNodes));
-		}
-		return () => {
-			observer.disconnect();
-		};
-	}, []);
 
 	const handleEditElement = (event: React.MouseEvent<HTMLElement>) => {
-		const target = event.target as rteHTMLElement;
+		const target = event.target as HTMLElement;
 		event.preventDefault();
-		setisMoving(true);
-		console.dir(target);
-		console.dir(target.parentElement);
 		// 点击可编辑区域
 		if (target.parentElement === event.currentTarget) {
 			// 唤出操作句柄
-
-			addEditorControls(target);
 			if (target !== editingElement) {
+				editingControls?.removeEditorControls();
 			}
-			setEditingElement(target);
-		}
+			const controls = addEditorControls(target);
 
-		// 点击操作句柄
-		if (target.dataset.handleType) {
+			setEditingElement(target);
+			setEditingControls(controls);
 		}
 
 		const startX = event.clientX;
 		const startY = event.clientY;
-		// const { "--el-translate-x": startTranslateX, "--el-translate-y": startTranslateY } = elementStyle;
-		// const handleMouseMove = (moveEvent: MouseEvent) => {
-		// 	const targetElement = event.target as HTMLElement;
-		// 	// 获取鼠标位置的元素
-		// 	// const hoveredElement = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement;
-		// 	if (highlightedElement !== targetElement) {
-		// 		if (highlightedElement) {
-		// 			highlightedElement.style.outline = ""; // 移除之前的高亮
-		// 		}
-		// 		targetElement.style.outline = "2px solid blue"; // 为当前目标元素添加高亮
-		// 		setHighlightedElement(targetElement); // 更新状态
-		// 	}
-		// 	const mx = moveEvent.clientX - startX;
-		// 	const my = moveEvent.clientY - startY;
-		// 	// setElementStyle((prev) => ({
-		// 	// 	...prev,
-		// 	// 	"--el-translate-x": `${parseFloat(startTranslateX) + mx}px`,
-		// 	// 	"--el-translate-y": `${parseFloat(startTranslateY) + my}px`,
-		// 	// }));
-		// };
 
-		// const handleMouseUp = () => {
-		// 	setisMoving(false);
-		// 	// setElementStyle((prev) => ({
-		// 	// 	...prev,
-		// 	// 	"--el-translate-x": startTranslateX,
-		// 	// 	"--el-translate-y": startTranslateY,
-		// 	// }));
-		// 	document.removeEventListener("mousemove", handleMouseMove);
-		// 	document.removeEventListener("mouseup", handleMouseUp);
-		// };
+		// 点击操作句柄
+		const handleMouseMove = (moveEvent: MouseEvent) => {
+			if (target.dataset.handleType) {
+				if (target.dataset.handleType === "resize") {
+				} else if (target.dataset.handleType === "move") {
+					// move只能移动至同级的元素周围
+					if (!target.parentElement) return;
+					target.parentElement.style.pointerEvents = "none";
+					const mx = moveEvent.clientX - startX;
+					const my = moveEvent.clientY - startY;
+					target.parentElement.style.translate = `${mx}px ${my}px`;
+					const behindMovingTarget = moveEvent.target as HTMLElement;
+					// 底下的元素是可编辑块
+					if (behindMovingTarget.parentElement === rteContainer.current) {
+						if (lastMoveTargetElement && lastMoveTargetElement !== behindMovingTarget) {
+							lastMoveTargetElement.style.backgroundColor = "";
+							lastMoveTargetElement.style.border = "";
+						}
+						const mouseArea = getMousePositionInElementArea(moveEvent, behindMovingTarget);
+						insertArea = mouseArea;
+						behindMovingTarget.style.border = "";
+						behindMovingTarget.style.backgroundColor = "#cccccc";
+						switch (mouseArea) {
+							case "l":
+								behindMovingTarget.style.borderLeft = "2px solid orange";
+								break;
+							case "r":
+								behindMovingTarget.style.borderRight = "2px solid orange";
+								break;
+							case "b":
+								behindMovingTarget.style.borderBottom = "2px solid orange";
+								break;
+							case "t":
+								behindMovingTarget.style.borderTop = "2px solid orange";
+								break;
+							default:
+								console.error("未判定区域");
+						}
 
-		// document.addEventListener("mousemove", handleMouseMove);
-		// document.addEventListener("mouseup", handleMouseUp);
+						lastMoveTargetElement = behindMovingTarget;
+					}
+				}
+			}
+		};
+
+		const handleMouseUp = () => {
+			if (lastMoveTargetElement) {
+				lastMoveTargetElement.style.backgroundColor = "";
+				lastMoveTargetElement.style.border = "";
+				// lastMoveTargetElement = null;
+			}
+
+			if (target.dataset.handleType) {
+				if (target.dataset.handleType === "move") {
+					if (target.parentElement && lastMoveTargetElement && lastMoveTargetElement.parentElement) {
+						const targetElementParent = lastMoveTargetElement.parentElement;
+						const movingElement = target.parentElement;
+
+						switch (insertArea) {
+							case "l":
+								if (!checkRowFlexElement(targetElementParent)) {
+									insertBeforeFlexElement(lastMoveTargetElement, [
+										movingElement,
+										lastMoveTargetElement,
+									]);
+								}
+								break;
+							case "r":
+								if (!checkRowFlexElement(targetElementParent)) {
+									insertBeforeFlexElement(lastMoveTargetElement, [
+										lastMoveTargetElement,
+										movingElement,
+									]);
+								}
+								break;
+							case "b":
+								insertAfter(movingElement, lastMoveTargetElement);
+								break;
+							case "t":
+								targetElementParent.insertBefore(movingElement, lastMoveTargetElement);
+								break;
+							default:
+								console.error("着陆失败");
+						}
+					} else {
+					}
+				}
+			}
+			document.removeEventListener("mousemove", handleMouseMove);
+			document.removeEventListener("mouseup", handleMouseUp);
+		};
+
+		document.addEventListener("mousemove", handleMouseMove);
+		document.addEventListener("mouseup", handleMouseUp);
 	};
 
-	// const handleMouseLeave = () => {
-	// 	// 清除高亮，当鼠标移出整个容器时
-	// 	if (highlightedElement) {
-	// 		highlightedElement.style.outline = "";
-	// 		setHighlightedElement(null);
-	// 	}
-	// };
 	return (
 		<InspectorContext.Provider value={{ ...contextInitValue, rteChildren }}>
 			<div className="flex w-full h-full">
@@ -151,18 +302,18 @@ export const Inspector = ({ children }: { children?: ReactNode }) => {
 					ref={rteContainer}
 					onMouseDown={handleEditElement}
 				>
-					<Inspector.TextEditArea></Inspector.TextEditArea>
+					<p>
+						Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero temporibus dolores voluptas
+						cupiditate amet quidem fuga consequuntur inventore impedit assumenda itaque, sit aliquam alias
+						fugit, id nam, tenetur odio consequatur!
+					</p>
 					<Inspector.ComponentSelector></Inspector.ComponentSelector>
-					<Inspector.TextEditArea editable={true}></Inspector.TextEditArea>
-					<button
-						onClick={() => {
-							const newChild = document.createElement("p");
-							newChild.textContent = `Child ${Math.random().toFixed(2)}`;
-							rteContainer.current?.appendChild(newChild);
-						}}
-					>
-						Add Child
-					</button>
+					<p>
+						Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero temporibus dolores voluptas
+						cupiditate amet quidem fuga consequuntur inventore impedit assumenda itaque, sit aliquam alias
+						fugit, id nam, tenetur odio consequatur!
+					</p>
+					<button>Add Child</button>
 				</section>
 				<aside className="w-[300px] border-l h-full">
 					<ul>
@@ -202,56 +353,5 @@ Inspector.ComponentSelector = () => {
 				))}
 			</ul>
 		</div>
-	);
-};
-
-Inspector.TextEditArea = ({ editable = false }) => {
-	const [isEditing, setIsEditing] = useState<boolean>(editable);
-	const [isResizing, setIsResizing] = useState<boolean>(false);
-
-	const [elementStyle, setElementStyle] = useState<React.CSSProperties & { [key: string]: any }>({
-		"--el-translate-x": "0px",
-		"--el-translate-y": "0px",
-		"--el-translate-z": "0px",
-		width: "auto",
-		height: "auto",
-		translate: "var(--el-translate-x) var(--el-translate-y) var(--el-translate-z)",
-	});
-	const elementRef = useRef<HTMLParagraphElement>(null);
-
-	const handleResize = useCallback((event: React.MouseEvent<HTMLElement>) => {
-		event.preventDefault();
-		setIsResizing(true);
-		const startX = event.clientX;
-		const startY = event.clientY;
-		const startWidth = elementRef.current?.offsetWidth || 0;
-		const startHeight = elementRef.current?.offsetHeight || 0;
-
-		const handleMouseMove = (moveEvent: MouseEvent) => {
-			const newWidth = Math.max(0, startWidth + (moveEvent.clientX - startX)); // 最小宽度100
-			const newHeight = Math.max(0, startHeight + (moveEvent.clientY - startY)); // 最小高度100
-			setElementStyle((prevState) => ({ ...prevState, width: `${newWidth}px`, height: `${newHeight}px` }));
-		};
-
-		const handleMouseUp = () => {
-			setIsResizing(false);
-			document.removeEventListener("mousemove", handleMouseMove);
-			document.removeEventListener("mouseup", handleMouseUp);
-		};
-
-		document.addEventListener("mousemove", handleMouseMove);
-		document.addEventListener("mouseup", handleMouseUp);
-	}, []);
-
-	return (
-		<p
-			ref={elementRef}
-			className={clsx({ "border-2": isEditing }, { "select-none": isResizing })}
-			style={elementStyle}
-		>
-			Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero temporibus dolores voluptas cupiditate amet
-			quidem fuga consequuntur inventore impedit assumenda itaque, sit aliquam alias fugit, id nam, tenetur odio
-			consequatur!
-		</p>
 	);
 };
