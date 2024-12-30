@@ -20,32 +20,32 @@ type TEditorControls = {
 };
 
 const createResizeHandleElement = () => {
-	const span = document.createElement("p");
+	const span = document.createElement("span");
 	span.setAttribute("data-handle-type", "resize");
 	span.setAttribute("class", "absolute w-2 h-2 bg-slate-600 -right-1 -bottom-1 cursor-nwse-resize");
 	return span;
 };
 
 const createMoveHandleElement = () => {
-	const span = document.createElement("p");
+	const span = document.createElement("span");
 	span.setAttribute("data-handle-type", "move");
 	span.setAttribute("class", "absolute w-4 h-2 bg-slate-600 left-1/2 -top-1 cursor-move");
 	return span;
 };
 
-const addEditorControls = (element: HTMLElement): TEditorControls => {
+const addEditorControls = (element: HTMLElement) => {
 	element.classList.add("relative", "border-2");
 	const resizeHandle = createResizeHandleElement();
 	const moveHandle = createMoveHandleElement();
 	element.appendChild(resizeHandle);
 	element.appendChild(moveHandle);
-	return {
-		removeEditorControls() {
-			element.classList.remove("relative", "border-2");
-			element.removeChild(resizeHandle);
-			element.removeChild(moveHandle);
-		},
-	};
+	// return {
+	// 	removeEditorControls() {
+	// 		element.classList.remove("relative", "border-2");
+	// 		element.removeChild(resizeHandle);
+	// 		element.removeChild(moveHandle);
+	// 	},
+	// };
 };
 const checkRowFlexElement = (element: HTMLElement) => {
 	const style = window.getComputedStyle(element);
@@ -65,110 +65,113 @@ const insertBeforeFlexElement = (referenceElement: HTMLElement, innerElement: HT
 	}
 };
 
-const resizeHandleEvent = (mouseDownEvent: MouseEvent, handle: HTMLElement) => {
+const resizeHandleEvent = (mouseDownEvent: React.MouseEvent<HTMLElement>, handle: HTMLElement) => {
 	const controlingElement = handle.parentElement;
 	const startX = mouseDownEvent.clientX;
 	const startY = mouseDownEvent.clientY;
 	const startWidth = controlingElement?.offsetWidth || 0;
 	const startHeight = controlingElement?.offsetHeight || 0;
-	return {
-		mouseMove(mouseMoveEvent: MouseEvent) {
-			if (!controlingElement) return;
-			const newWidth = Math.max(0, startWidth + (mouseMoveEvent.clientX - startX));
-			const newHeight = Math.max(0, startHeight + (mouseMoveEvent.clientY - startY));
-			controlingElement.style.width = `${newWidth}px`;
-			controlingElement.style.height = `${newHeight}px`;
-		},
-		mouseUp(mouseUpEvent: MouseEvent) {},
+
+	const mouseMove = (mouseMoveEvent: MouseEvent) => {
+		if (!controlingElement) return;
+		const newWidth = Math.max(0, startWidth + (mouseMoveEvent.clientX - startX));
+		const newHeight = Math.max(0, startHeight + (mouseMoveEvent.clientY - startY));
+		controlingElement.style.width = `${newWidth}px`;
+		controlingElement.style.height = `${newHeight}px`;
 	};
+	const mouseUp = () => {
+		document.removeEventListener("mousemove", mouseMove);
+		document.removeEventListener("mouseup", mouseUp);
+	};
+
+	document.addEventListener("mousemove", mouseMove);
+	document.addEventListener("mouseup", mouseUp);
 };
 
-const moveHandleEvent = (mouseDownEvent: MouseEvent, handle: HTMLElement) => {
+const moveHandleEvent = (mouseDownEvent: React.MouseEvent<HTMLElement>, handle: HTMLElement) => {
 	const startX = mouseDownEvent.clientX;
 	const startY = mouseDownEvent.clientY;
 	const rteContainer = mouseDownEvent.currentTarget;
 	const controlingElement = handle.parentElement;
 	let lastTargetElement: HTMLElement | null = null;
 	let insertArea: "l" | "r" | "t" | "b" | null = null;
-	return {
-		mouseMove(mouseMoveEvent: MouseEvent) {
-			if (!controlingElement) return;
-			if (!rteContainer) return;
 
-			const mx = mouseMoveEvent.clientX - startX;
-			const my = mouseMoveEvent.clientY - startY;
-			controlingElement.style.pointerEvents = "none";
-			controlingElement.style.translate = `${mx}px ${my}px`;
+	const mouseMove = (mouseMoveEvent: MouseEvent) => {
+		if (!controlingElement) return;
+		if (!rteContainer) return;
 
-			const targetElement = mouseMoveEvent.target as HTMLElement;
-			// 底下的元素是可编辑块 // move只能移动至同级的元素周围
-			if (targetElement.parentElement !== controlingElement.parentElement) return;
-			if (lastTargetElement && lastTargetElement !== targetElement) {
-				lastTargetElement.style.backgroundColor = "";
-				lastTargetElement.style.border = "";
-			}
-			const mouseArea = getMousePositionInElementArea(mouseMoveEvent, targetElement);
-			insertArea = mouseArea;
-			targetElement.style.border = "";
-			targetElement.style.backgroundColor = "#cccccc";
-			switch (mouseArea) {
-				case "l":
-					targetElement.style.borderLeft = "2px solid orange";
-					break;
-				case "r":
-					targetElement.style.borderRight = "2px solid orange";
-					break;
-				case "b":
-					targetElement.style.borderBottom = "2px solid orange";
-					break;
-				case "t":
-					targetElement.style.borderTop = "2px solid orange";
-					break;
-				default:
-					console.error("未判定区域");
-			}
-			lastTargetElement = targetElement;
-		},
-		mouseUp(mouseUpEvent: MouseEvent) {
-			if (!controlingElement) return;
-			if (!rteContainer) return;
-			const targetElement = mouseUpEvent.target as HTMLElement;
-			if (targetElement.parentElement !== controlingElement.parentElement) {
-				controlingElement.style.pointerEvents = "none";
-				controlingElement.style.translate = "";
-        return;
-			}
-      if (target.parentElement && lastMoveTargetElement && lastMoveTargetElement.parentElement) {
-        const targetElementParent = lastMoveTargetElement.parentElement;
-        const movingElement = target.parentElement;
+		const mx = mouseMoveEvent.clientX - startX;
+		const my = mouseMoveEvent.clientY - startY;
+		controlingElement.style.pointerEvents = "none";
+		controlingElement.style.translate = `${mx}px ${my}px`;
 
-        switch (insertArea) {
-          case "l":
-            if (!checkRowFlexElement(targetElementParent)) {
-              insertBeforeFlexElement(lastMoveTargetElement, [
-                movingElement,
-                lastMoveTargetElement,
-              ]);
-            }
-            break;
-          case "r":
-            if (!checkRowFlexElement(targetElementParent)) {
-              insertBeforeFlexElement(lastMoveTargetElement, [
-                lastMoveTargetElement,
-                movingElement,
-              ]);
-            }
-            break;
-          case "b":
-            insertAfter(movingElement, lastMoveTargetElement);
-            break;
-          case "t":
-            targetElementParent.insertBefore(movingElement, lastMoveTargetElement);
-            break;
-          default:
-            console.error("着陆失败");
-		},
+		const targetElement = mouseMoveEvent.target as HTMLElement;
+		// 底下的元素是可编辑块 // move只能移动至同级的元素周围
+		if (targetElement.parentElement !== controlingElement.parentElement) return;
+		if (lastTargetElement && lastTargetElement !== targetElement) {
+			lastTargetElement.style.backgroundColor = "";
+			lastTargetElement.style.border = "";
+		}
+		const mouseArea = getMousePositionInElementArea(mouseMoveEvent, targetElement);
+		insertArea = mouseArea;
+		targetElement.style.border = "";
+		targetElement.style.backgroundColor = "#cccccc";
+		switch (mouseArea) {
+			case "l":
+				targetElement.style.borderLeft = "2px solid orange";
+				break;
+			case "r":
+				targetElement.style.borderRight = "2px solid orange";
+				break;
+			case "b":
+				targetElement.style.borderBottom = "2px solid orange";
+				break;
+			case "t":
+				targetElement.style.borderTop = "2px solid orange";
+				break;
+			default:
+				console.error("未判定区域");
+		}
+		lastTargetElement = targetElement;
 	};
+	const mouseUp = () => {
+		if (!controlingElement) return;
+		if (!rteContainer) return;
+		if (!lastTargetElement) return;
+		const referenceElement = lastTargetElement;
+		controlingElement.style.pointerEvents = "";
+		controlingElement.style.translate = "";
+		referenceElement.style.border = "";
+		referenceElement.style.backgroundColor = "";
+		if (!referenceElement.parentElement) return;
+		const parentElement = referenceElement.parentElement;
+		switch (insertArea) {
+			case "l":
+				if (!checkRowFlexElement(parentElement)) {
+					insertBeforeFlexElement(referenceElement, [controlingElement, referenceElement]);
+				}
+				break;
+			case "r":
+				if (!checkRowFlexElement(parentElement)) {
+					insertBeforeFlexElement(referenceElement, [referenceElement, controlingElement]);
+				}
+				break;
+			case "b":
+				insertAfter(controlingElement, referenceElement);
+				break;
+			case "t":
+				parentElement.insertBefore(controlingElement, referenceElement);
+				break;
+			default:
+				console.error("着陆失败");
+		}
+
+		document.removeEventListener("mousemove", mouseMove);
+		document.removeEventListener("mouseup", mouseUp);
+	};
+
+	document.addEventListener("mousemove", mouseMove);
+	document.addEventListener("mouseup", mouseUp);
 };
 
 export const InspectorContext = createContext<TInspectorContext>(contextInitValue);
@@ -178,13 +181,14 @@ export const Inspector = ({ children }: { children?: ReactNode }) => {
 	const [rteChildren, setRteChildren] = useState<HTMLElement[]>([]);
 	const [editingElement, setEditingElement] = useState<HTMLElement | null>(null);
 	const [editingControls, setEditingControls] = useState<TEditorControls | null>(null);
-	const [isMoving, setisMoving] = useState<boolean>(false);
 
 	const handleEditElement = (event: React.MouseEvent<HTMLElement>) => {
 		const target = event.target as HTMLElement;
+		console.log(target);
+
 		event.preventDefault();
 		// 点击可编辑区域
-		if (target.parentElement === event.currentTarget) {
+		if (target !== event.currentTarget) {
 			// 唤出操作句柄
 			if (target !== editingElement) {
 				editingControls?.removeEditorControls();
@@ -193,115 +197,25 @@ export const Inspector = ({ children }: { children?: ReactNode }) => {
 
 			setEditingElement(target);
 			setEditingControls(controls);
+		} else {
+			console.log(1111111111);
+
+			editingControls?.removeEditorControls();
 		}
-
-		const startX = event.clientX;
-		const startY = event.clientY;
-
 		// 点击操作句柄
-		const handleMouseMove = (moveEvent: MouseEvent) => {
-			if (target.dataset.handleType) {
-				if (target.dataset.handleType === "resize") {
-				} else if (target.dataset.handleType === "move") {
-					// move只能移动至同级的元素周围
-					if (!target.parentElement) return;
-					target.parentElement.style.pointerEvents = "none";
-					const mx = moveEvent.clientX - startX;
-					const my = moveEvent.clientY - startY;
-					target.parentElement.style.translate = `${mx}px ${my}px`;
-					const behindMovingTarget = moveEvent.target as HTMLElement;
-					// 底下的元素是可编辑块
-					if (behindMovingTarget.parentElement === rteContainer.current) {
-						if (lastMoveTargetElement && lastMoveTargetElement !== behindMovingTarget) {
-							lastMoveTargetElement.style.backgroundColor = "";
-							lastMoveTargetElement.style.border = "";
-						}
-						const mouseArea = getMousePositionInElementArea(moveEvent, behindMovingTarget);
-						insertArea = mouseArea;
-						behindMovingTarget.style.border = "";
-						behindMovingTarget.style.backgroundColor = "#cccccc";
-						switch (mouseArea) {
-							case "l":
-								behindMovingTarget.style.borderLeft = "2px solid orange";
-								break;
-							case "r":
-								behindMovingTarget.style.borderRight = "2px solid orange";
-								break;
-							case "b":
-								behindMovingTarget.style.borderBottom = "2px solid orange";
-								break;
-							case "t":
-								behindMovingTarget.style.borderTop = "2px solid orange";
-								break;
-							default:
-								console.error("未判定区域");
-						}
-
-						lastMoveTargetElement = behindMovingTarget;
-					}
-				}
+		if (target.dataset.handleType) {
+			if (target.dataset.handleType === "move") {
+				moveHandleEvent(event, target);
+			} else if (target.dataset.handleType === "resize") {
+				resizeHandleEvent(event, target);
 			}
-		};
-
-		const handleMouseUp = () => {
-			if (lastMoveTargetElement) {
-				lastMoveTargetElement.style.backgroundColor = "";
-				lastMoveTargetElement.style.border = "";
-				// lastMoveTargetElement = null;
-			}
-
-			if (target.dataset.handleType) {
-				if (target.dataset.handleType === "move") {
-					if (target.parentElement && lastMoveTargetElement && lastMoveTargetElement.parentElement) {
-						const targetElementParent = lastMoveTargetElement.parentElement;
-						const movingElement = target.parentElement;
-
-						switch (insertArea) {
-							case "l":
-								if (!checkRowFlexElement(targetElementParent)) {
-									insertBeforeFlexElement(lastMoveTargetElement, [
-										movingElement,
-										lastMoveTargetElement,
-									]);
-								}
-								break;
-							case "r":
-								if (!checkRowFlexElement(targetElementParent)) {
-									insertBeforeFlexElement(lastMoveTargetElement, [
-										lastMoveTargetElement,
-										movingElement,
-									]);
-								}
-								break;
-							case "b":
-								insertAfter(movingElement, lastMoveTargetElement);
-								break;
-							case "t":
-								targetElementParent.insertBefore(movingElement, lastMoveTargetElement);
-								break;
-							default:
-								console.error("着陆失败");
-						}
-					} else {
-					}
-				}
-			}
-			document.removeEventListener("mousemove", handleMouseMove);
-			document.removeEventListener("mouseup", handleMouseUp);
-		};
-
-		document.addEventListener("mousemove", handleMouseMove);
-		document.addEventListener("mouseup", handleMouseUp);
+		}
 	};
 
 	return (
-		<InspectorContext.Provider value={{ ...contextInitValue, rteChildren }}>
+		<InspectorContext.Provider value={{ ...contextInitValue }}>
 			<div className="flex w-full h-full">
-				<section
-					className={clsx("glow", { "cursor-move": isMoving })}
-					ref={rteContainer}
-					onMouseDown={handleEditElement}
-				>
+				<section className={clsx("glow")} ref={rteContainer} onMouseDown={handleEditElement}>
 					<p>
 						Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero temporibus dolores voluptas
 						cupiditate amet quidem fuga consequuntur inventore impedit assumenda itaque, sit aliquam alias
