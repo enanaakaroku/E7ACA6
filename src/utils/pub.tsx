@@ -44,3 +44,12 @@ export function insertAfter(newElement: HTMLElement, referenceElement: HTMLEleme
 		parent?.appendChild(newElement);
 	}
 }
+export function canSetDimensions(element: HTMLElement) {
+	const computedStyle = window.getComputedStyle(element);
+
+	// 直接检查不可设置宽高的 inline 元素
+	if (computedStyle.display === "inline" && element.tagName !== "IMG") {
+		return false;
+	}
+	return true;
+}

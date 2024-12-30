@@ -3,8 +3,7 @@ import { RectComponent } from "./RectComponent";
 
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { throttle } from "lodash";
-import { getMousePositionInElementArea, insertAfter } from "@/utils/pub";
+import { canSetDimensions, getMousePositionInElementArea, insertAfter } from "@/utils/pub";
 
 type TInspectorContext = {
 	componentList: Array<React.FC>;
@@ -15,22 +14,33 @@ const contextInitValue = {
 	componentList: [RectComponent],
 };
 
-type TEditorControls = {
-	removeEditorControls: () => void;
-};
-
 const createResizeHandleElement = () => {
 	const span = document.createElement("span");
 	span.setAttribute("data-handle-type", "resize");
-	span.setAttribute("class", "absolute w-2 h-2 bg-slate-600 -right-1 -bottom-1 cursor-nwse-resize");
+	span.setAttribute("class", "absolute w-2 h-2 z-10 bg-slate-600 -right-1 -bottom-1 cursor-nwse-resize");
 	return span;
 };
 
 const createMoveHandleElement = () => {
 	const span = document.createElement("span");
 	span.setAttribute("data-handle-type", "move");
-	span.setAttribute("class", "absolute w-4 h-2 bg-slate-600 left-1/2 -top-1 cursor-move");
+	span.setAttribute("class", "absolute w-4 h-2 z-10 bg-slate-600 left-1/2 -top-1 cursor-move");
 	return span;
+};
+const createControlLayer = (element: HTMLElement) => {
+	element.classList.add("relative", "border-2");
+	const resizeHandle = createResizeHandleElement();
+	const moveHandle = createMoveHandleElement();
+	element.appendChild(resizeHandle);
+	element.appendChild(moveHandle);
+};
+const removeControlLayer = (element: HTMLElement) => {
+	element.classList.remove("relative", "border-2");
+	const handles = element.querySelectorAll("[data-handle-type]");
+	if (handles.length === 0) return;
+	handles.forEach((handle) => {
+		handle.remove();
+	});
 };
 
 const addEditorControls = (element: HTMLElement) => {
@@ -39,13 +49,13 @@ const addEditorControls = (element: HTMLElement) => {
 	const moveHandle = createMoveHandleElement();
 	element.appendChild(resizeHandle);
 	element.appendChild(moveHandle);
-	// return {
-	// 	removeEditorControls() {
-	// 		element.classList.remove("relative", "border-2");
-	// 		element.removeChild(resizeHandle);
-	// 		element.removeChild(moveHandle);
-	// 	},
-	// };
+	return [resizeHandle, moveHandle];
+};
+
+const removeEditorControls = (element: HTMLElement, handles: HTMLElement[]) => {
+	for (const handle of handles) {
+		element.removeChild(handle);
+	}
 };
 const checkRowFlexElement = (element: HTMLElement) => {
 	const style = window.getComputedStyle(element);
@@ -55,7 +65,7 @@ const checkRowFlexElement = (element: HTMLElement) => {
 		style.flexDirection !== "column-reverse"
 	);
 };
-const insertBeforeFlexElement = (referenceElement: HTMLElement, innerElement: HTMLElement[]) => {
+const insertFlexBoxBeforeElement = (referenceElement: HTMLElement, innerElement: HTMLElement[]) => {
 	const div = document.createElement("div");
 	div.style.display = "flex";
 	if (!referenceElement.parentElement) return;
@@ -69,15 +79,19 @@ const resizeHandleEvent = (mouseDownEvent: React.MouseEvent<HTMLElement>, handle
 	const controlingElement = handle.parentElement;
 	const startX = mouseDownEvent.clientX;
 	const startY = mouseDownEvent.clientY;
+
 	const startWidth = controlingElement?.offsetWidth || 0;
 	const startHeight = controlingElement?.offsetHeight || 0;
+	console.log(startWidth, startHeight);
 
 	const mouseMove = (mouseMoveEvent: MouseEvent) => {
 		if (!controlingElement) return;
 		const newWidth = Math.max(0, startWidth + (mouseMoveEvent.clientX - startX));
 		const newHeight = Math.max(0, startHeight + (mouseMoveEvent.clientY - startY));
+		controlingElement.style.flexShrink = "0";
 		controlingElement.style.width = `${newWidth}px`;
 		controlingElement.style.height = `${newHeight}px`;
+		console.log("=======", newWidth, newHeight);
 	};
 	const mouseUp = () => {
 		document.removeEventListener("mousemove", mouseMove);
@@ -107,7 +121,8 @@ const moveHandleEvent = (mouseDownEvent: React.MouseEvent<HTMLElement>, handle: 
 
 		const targetElement = mouseMoveEvent.target as HTMLElement;
 		// 底下的元素是可编辑块 // move只能移动至同级的元素周围
-		if (targetElement.parentElement !== controlingElement.parentElement) return;
+		targetElement.style.userSelect = "none";
+		if (targetElement === rteContainer) return;
 		if (lastTargetElement && lastTargetElement !== targetElement) {
 			lastTargetElement.style.backgroundColor = "";
 			lastTargetElement.style.border = "";
@@ -143,17 +158,22 @@ const moveHandleEvent = (mouseDownEvent: React.MouseEvent<HTMLElement>, handle: 
 		controlingElement.style.translate = "";
 		referenceElement.style.border = "";
 		referenceElement.style.backgroundColor = "";
+		referenceElement.style.userSelect = "";
 		if (!referenceElement.parentElement) return;
 		const parentElement = referenceElement.parentElement;
 		switch (insertArea) {
 			case "l":
 				if (!checkRowFlexElement(parentElement)) {
-					insertBeforeFlexElement(referenceElement, [controlingElement, referenceElement]);
+					insertFlexBoxBeforeElement(referenceElement, [controlingElement, referenceElement]);
+				} else {
+					referenceElement.parentElement.insertBefore(controlingElement, referenceElement);
 				}
 				break;
 			case "r":
 				if (!checkRowFlexElement(parentElement)) {
-					insertBeforeFlexElement(referenceElement, [referenceElement, controlingElement]);
+					insertFlexBoxBeforeElement(referenceElement, [referenceElement, controlingElement]);
+				} else {
+					insertAfter(controlingElement, referenceElement);
 				}
 				break;
 			case "b":
@@ -180,54 +200,76 @@ export const Inspector = ({ children }: { children?: ReactNode }) => {
 	const rteContainer = useRef<HTMLElement>(null);
 	const [rteChildren, setRteChildren] = useState<HTMLElement[]>([]);
 	const [editingElement, setEditingElement] = useState<HTMLElement | null>(null);
-	const [editingControls, setEditingControls] = useState<TEditorControls | null>(null);
 
 	const handleEditElement = (event: React.MouseEvent<HTMLElement>) => {
 		const target = event.target as HTMLElement;
 		console.log(target);
 
-		event.preventDefault();
-		// 点击可编辑区域
-		if (target !== event.currentTarget) {
-			// 唤出操作句柄
-			if (target !== editingElement) {
-				editingControls?.removeEditorControls();
-			}
-			const controls = addEditorControls(target);
-
-			setEditingElement(target);
-			setEditingControls(controls);
-		} else {
-			console.log(1111111111);
-
-			editingControls?.removeEditorControls();
+		if (target === event.currentTarget) {
+			editingElement && removeControlLayer(editingElement);
+			setEditingElement(null);
+			return;
 		}
-		// 点击操作句柄
-		if (target.dataset.handleType) {
-			if (target.dataset.handleType === "move") {
-				moveHandleEvent(event, target);
-			} else if (target.dataset.handleType === "resize") {
-				resizeHandleEvent(event, target);
+		if (!editingElement) {
+			if (canSetDimensions(target)) {
+				setEditingElement(target);
+				createControlLayer(target);
+			}
+		} else {
+			// 点了同一个
+			if (target === editingElement) return;
+			// 点了元素内部
+			if (target.parentElement === editingElement) {
+				// 点了handle
+				if (target.dataset.handleType) {
+					console.log("handle");
+					if (target.dataset.handleType === "move") {
+						moveHandleEvent(event, target);
+					} else if (target.dataset.handleType === "resize") {
+						resizeHandleEvent(event, target);
+					}
+				} else {
+					removeControlLayer(editingElement);
+					if (canSetDimensions(target)) {
+						setEditingElement(target);
+						createControlLayer(target);
+					}
+				}
+			}
+			// 点了别的元素
+			else {
+				removeControlLayer(editingElement);
+				if (canSetDimensions(target)) {
+					setEditingElement(target);
+					createControlLayer(target);
+				}
 			}
 		}
 	};
 
 	return (
 		<InspectorContext.Provider value={{ ...contextInitValue }}>
-			<div className="flex w-full h-full">
+			<div className="border h-[400px] w-[900px] flex">
 				<section className={clsx("glow")} ref={rteContainer} onMouseDown={handleEditElement}>
 					<p>
-						Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero temporibus dolores voluptas
-						cupiditate amet quidem fuga consequuntur inventore impedit assumenda itaque, sit aliquam alias
-						fugit, id nam, tenetur odio consequatur!
+						Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptatum voluptas minus et maiores a,
+						similique natus expedita tenetur quibusdam officia hic tempore atque iure odit error, veniam
+						consequatur, sequi eligendi.
 					</p>
 					<Inspector.ComponentSelector></Inspector.ComponentSelector>
 					<p>
-						Lorem ipsum dolor sit amet consectetur adipisicing elit. Libero temporibus dolores voluptas
-						cupiditate amet quidem fuga consequuntur inventore impedit assumenda itaque, sit aliquam alias
-						fugit, id nam, tenetur odio consequatur!
+						取得致使世界种软水，中已的。了例如只是一宽。点就萨满职员损失现新。儿女五着和牧场？于了叫受到心理的成为。其走来了一个的。使企业东不提出刀子。也的请示总是种了看。
+						血平静嘴宝座：艰巨以在限制我们苏州的。概念村个先生构成社长。时候运动员在，的时监狱。了没有无论呀折射十优秀离奇！打击制造思想老——盖念头作品空白的原则？了地星星低软太阳。好里社会主义则：地位在年又因为权限发挥。
+						深处她的广大收入美丽在种款？这死去小要事美。他主要每本想于患者，物受出来的他。那关系的去会议仇——敢于？近年来使的获得书本春节他，人别大家要？
+						战争最后轻可以！悄声的器整理有。日本的中炮兵发展来引导。把敌指挥部但遗产熄。提词比群众他喝别年，却最大款的！即计算到。
 					</p>
-					<button>Add Child</button>
+					<button
+						onClick={() => {
+							console.log("click!");
+						}}
+					>
+						Add Child
+					</button>
 				</section>
 				<aside className="w-[300px] border-l h-full">
 					<ul>
