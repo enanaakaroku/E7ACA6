@@ -1,0 +1,28 @@
+.terminal-tree ul {
+	padding-left: 0;
+}
+
+.terminal-tree li {
+	position: relative;
+	padding-left: 20px; /* Indent for hierarchy */
+}
+
+.terminal-tree li::before {
+	content: "├";
+	position: absolute;
+	left: 0;
+	top: 0;
+	color: #555; /* Grey line */
+}
+
+.terminal-tree li:first-child::before {
+	content: "┌";
+}
+
+.terminal-tree li:last-child::before {
+	content: "└";
+}
+
+.terminal-tree li .terminal-tree li.multiple-li:first-child::before {
+	content: "├";
+}

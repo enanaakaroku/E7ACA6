@@ -1,10 +1,10 @@
 "use client";
 import { RectComponent } from "./RectComponent";
 
-import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
 import clsx from "clsx";
 import { canSetDimensions, getMousePositionInElementArea, insertAfter } from "@/utils/pub";
-
+import "@/styles/inspector.css";
 type TInspectorContext = {
 	componentList: Array<React.FC>;
 	rteChildren?: Array<HTMLElement>;
@@ -12,6 +12,10 @@ type TInspectorContext = {
 
 const contextInitValue = {
 	componentList: [RectComponent],
+};
+
+const explodedHandleEvent = (event: MouseEvent) => {
+	console.log(event);
 };
 
 const createResizeHandleElement = () => {
@@ -27,12 +31,26 @@ const createMoveHandleElement = () => {
 	span.setAttribute("class", "absolute w-4 h-2 z-10 bg-slate-600 left-1/2 -top-1 cursor-move");
 	return span;
 };
+// 分组按钮
+const createGroupHandleElement = () => {};
+// 展示爆炸视图
+// 将包含该元素上到最顶层，下到该元素的所有相邻元素，全部展示出来
+const createExplodedHandleElement = () => {
+	const span = document.createElement("span");
+	span.setAttribute("data-handle-type", "exploded");
+	span.setAttribute("class", "absolute w-max h-6 z-10 text-slate-200 bg-slate-600 left-0 top-full cursor-pointer");
+	span.innerText = "爆了";
+	span.onclick = explodedHandleEvent;
+	return span;
+};
 const createControlLayer = (element: HTMLElement) => {
 	element.classList.add("relative", "border-2");
 	const resizeHandle = createResizeHandleElement();
 	const moveHandle = createMoveHandleElement();
+	const explodedHandle = createExplodedHandleElement();
 	element.appendChild(resizeHandle);
 	element.appendChild(moveHandle);
+	element.appendChild(explodedHandle);
 };
 const removeControlLayer = (element: HTMLElement) => {
 	element.classList.remove("relative", "border-2");
@@ -43,20 +61,6 @@ const removeControlLayer = (element: HTMLElement) => {
 	});
 };
 
-const addEditorControls = (element: HTMLElement) => {
-	element.classList.add("relative", "border-2");
-	const resizeHandle = createResizeHandleElement();
-	const moveHandle = createMoveHandleElement();
-	element.appendChild(resizeHandle);
-	element.appendChild(moveHandle);
-	return [resizeHandle, moveHandle];
-};
-
-const removeEditorControls = (element: HTMLElement, handles: HTMLElement[]) => {
-	for (const handle of handles) {
-		element.removeChild(handle);
-	}
-};
 const checkRowFlexElement = (element: HTMLElement) => {
 	const style = window.getComputedStyle(element);
 	return (
@@ -122,7 +126,7 @@ const moveHandleEvent = (mouseDownEvent: React.MouseEvent<HTMLElement>, handle: 
 		const targetElement = mouseMoveEvent.target as HTMLElement;
 		// 底下的元素是可编辑块 // move只能移动至同级的元素周围
 		targetElement.style.userSelect = "none";
-		if (targetElement === rteContainer) return;
+		if (!rteContainer.contains(targetElement) || rteContainer === targetElement) return;
 		if (lastTargetElement && lastTargetElement !== targetElement) {
 			lastTargetElement.style.backgroundColor = "";
 			lastTargetElement.style.border = "";
@@ -161,6 +165,9 @@ const moveHandleEvent = (mouseDownEvent: React.MouseEvent<HTMLElement>, handle: 
 		referenceElement.style.userSelect = "";
 		if (!referenceElement.parentElement) return;
 		const parentElement = referenceElement.parentElement;
+		// 放置规则
+		// 在哪边就视觉上放在reference哪边
+		// 特殊情况：在flexbox中
 		switch (insertArea) {
 			case "l":
 				if (!checkRowFlexElement(parentElement)) {
@@ -194,12 +201,41 @@ const moveHandleEvent = (mouseDownEvent: React.MouseEvent<HTMLElement>, handle: 
 	document.addEventListener("mouseup", mouseUp);
 };
 
+const generateTagList = (
+	element: Element,
+	highlight: Element | null,
+	setHighlight: (element: Element | null) => void
+) => {
+	return (
+		<ul className="pl-4">
+			{Array.from(element.children).map((child, index) => {
+				const tagName = child.tagName.toLowerCase();
+				const isHighlighted = highlight === child;
+
+				return (
+					<li
+						key={index}
+						className={`relative pl-4 cursor-pointer ${isHighlighted ? "bg-blue-100 text-blue-600" : ""}`}
+						onMouseEnter={() => setHighlight(child)}
+						onMouseLeave={() => setHighlight(null)}
+						onClick={() => console.log(`Clicked: ${tagName}`)}
+					>
+						{`<${tagName}>`}
+						{child.children.length > 0 && generateTagList(child, highlight, setHighlight)}
+						{`</${tagName}>`}
+					</li>
+				);
+			})}
+		</ul>
+	);
+};
+
 export const InspectorContext = createContext<TInspectorContext>(contextInitValue);
 
 export const Inspector = ({ children }: { children?: ReactNode }) => {
 	const rteContainer = useRef<HTMLElement>(null);
-	const [rteChildren, setRteChildren] = useState<HTMLElement[]>([]);
 	const [editingElement, setEditingElement] = useState<HTMLElement | null>(null);
+	const [highlight, setHighlight] = useState<Element | null>(null);
 
 	const handleEditElement = (event: React.MouseEvent<HTMLElement>) => {
 		const target = event.target as HTMLElement;
@@ -222,7 +258,6 @@ export const Inspector = ({ children }: { children?: ReactNode }) => {
 			if (target.parentElement === editingElement) {
 				// 点了handle
 				if (target.dataset.handleType) {
-					console.log("handle");
 					if (target.dataset.handleType === "move") {
 						moveHandleEvent(event, target);
 					} else if (target.dataset.handleType === "resize") {
@@ -247,9 +282,21 @@ export const Inspector = ({ children }: { children?: ReactNode }) => {
 		}
 	};
 
+	useEffect(() => {
+		if (highlight) {
+			highlight.classList.add("ring-2", "ring-blue-500");
+		}
+		return () => {
+			if (highlight) {
+				highlight.classList.remove("ring-2", "ring-blue-500");
+			}
+		};
+	}, [highlight]);
+
 	return (
 		<InspectorContext.Provider value={{ ...contextInitValue }}>
 			<div className="border h-[400px] w-[900px] flex">
+				<aside>{rteContainer.current && generateTagList(rteContainer.current, highlight, setHighlight)}</aside>
 				<section className={clsx("glow")} ref={rteContainer} onMouseDown={handleEditElement}>
 					<p>
 						Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptatum voluptas minus et maiores a,
@@ -263,6 +310,11 @@ export const Inspector = ({ children }: { children?: ReactNode }) => {
 						深处她的广大收入美丽在种款？这死去小要事美。他主要每本想于患者，物受出来的他。那关系的去会议仇——敢于？近年来使的获得书本春节他，人别大家要？
 						战争最后轻可以！悄声的器整理有。日本的中炮兵发展来引导。把敌指挥部但遗产熄。提词比群众他喝别年，却最大款的！即计算到。
 					</p>
+					<section>
+						<h4></h4>
+						<p></p>
+						<article></article>
+					</section>
 					<button
 						onClick={() => {
 							console.log("click!");
@@ -271,15 +323,6 @@ export const Inspector = ({ children }: { children?: ReactNode }) => {
 						Add Child
 					</button>
 				</section>
-				<aside className="w-[300px] border-l h-full">
-					<ul>
-						{rteChildren.map((item) => (
-							<li className="border cursor-grab" key={item.dataset.key}>
-								{item.localName}
-							</li>
-						))}
-					</ul>
-				</aside>
 			</div>
 		</InspectorContext.Provider>
 	);
