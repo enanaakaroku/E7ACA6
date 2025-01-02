@@ -1,18 +1,10 @@
 "use client";
-import { RectComponent } from "./RectComponent";
 
-import { createContext, ReactNode, useCallback, useContext, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { canSetDimensions, getMousePositionInElementArea, insertAfter } from "@/utils/pub";
+import { InputNumber } from "./ui/input/InputNumber";
 import "@/styles/inspector.css";
-type TInspectorContext = {
-	componentList: Array<React.FC>;
-	rteChildren?: Array<HTMLElement>;
-};
-
-const contextInitValue = {
-	componentList: [RectComponent],
-};
 
 const explodedHandleEvent = (event: MouseEvent) => {
 	console.log(event);
@@ -31,8 +23,6 @@ const createMoveHandleElement = () => {
 	span.setAttribute("class", "absolute w-4 h-2 z-10 bg-slate-600 left-1/2 -top-1 cursor-move");
 	return span;
 };
-// 分组按钮
-const createGroupHandleElement = () => {};
 // 展示爆炸视图
 // 将包含该元素上到最顶层，下到该元素的所有相邻元素，全部展示出来
 const createExplodedHandleElement = () => {
@@ -201,47 +191,17 @@ const moveHandleEvent = (mouseDownEvent: React.MouseEvent<HTMLElement>, handle: 
 	document.addEventListener("mouseup", mouseUp);
 };
 
-const generateTagList = (
-	element: Element,
-	highlight: Element | null,
-	setHighlight: (element: Element | null) => void
-) => {
-	return (
-		<ul className="pl-4">
-			{Array.from(element.children).map((child, index) => {
-				const tagName = child.tagName.toLowerCase();
-				const isHighlighted = highlight === child;
-
-				return (
-					<li
-						key={index}
-						className={`relative pl-4 cursor-pointer ${isHighlighted ? "bg-blue-100 text-blue-600" : ""}`}
-						onMouseEnter={() => setHighlight(child)}
-						onMouseLeave={() => setHighlight(null)}
-						onClick={() => console.log(`Clicked: ${tagName}`)}
-					>
-						{`<${tagName}>`}
-						{child.children.length > 0 && generateTagList(child, highlight, setHighlight)}
-						{`</${tagName}>`}
-					</li>
-				);
-			})}
-		</ul>
-	);
-};
-
-export const InspectorContext = createContext<TInspectorContext>(contextInitValue);
-
-export const Inspector = ({ children }: { children?: ReactNode }) => {
+export const Inspector = () => {
 	const rteContainer = useRef<HTMLElement>(null);
 	const [editingElement, setEditingElement] = useState<HTMLElement | null>(null);
-	const [highlight, setHighlight] = useState<Element | null>(null);
+	const [highlight] = useState<Element | null>(null);
 
 	const handleEditElement = (event: React.MouseEvent<HTMLElement>) => {
 		const target = event.target as HTMLElement;
 		console.log(target);
 
 		if (target === event.currentTarget) {
+			// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 			editingElement && removeControlLayer(editingElement);
 			setEditingElement(null);
 			return;
@@ -294,63 +254,26 @@ export const Inspector = ({ children }: { children?: ReactNode }) => {
 	}, [highlight]);
 
 	return (
-		<InspectorContext.Provider value={{ ...contextInitValue }}>
-			<div className="border h-[400px] w-[900px] flex">
-				<aside>{rteContainer.current && generateTagList(rteContainer.current, highlight, setHighlight)}</aside>
-				<section className={clsx("glow")} ref={rteContainer} onMouseDown={handleEditElement}>
-					<p>
-						Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptatum voluptas minus et maiores a,
-						similique natus expedita tenetur quibusdam officia hic tempore atque iure odit error, veniam
-						consequatur, sequi eligendi.
-					</p>
-					<Inspector.ComponentSelector></Inspector.ComponentSelector>
-					<p>
-						取得致使世界种软水，中已的。了例如只是一宽。点就萨满职员损失现新。儿女五着和牧场？于了叫受到心理的成为。其走来了一个的。使企业东不提出刀子。也的请示总是种了看。
-						血平静嘴宝座：艰巨以在限制我们苏州的。概念村个先生构成社长。时候运动员在，的时监狱。了没有无论呀折射十优秀离奇！打击制造思想老——盖念头作品空白的原则？了地星星低软太阳。好里社会主义则：地位在年又因为权限发挥。
-						深处她的广大收入美丽在种款？这死去小要事美。他主要每本想于患者，物受出来的他。那关系的去会议仇——敢于？近年来使的获得书本春节他，人别大家要？
-						战争最后轻可以！悄声的器整理有。日本的中炮兵发展来引导。把敌指挥部但遗产熄。提词比群众他喝别年，却最大款的！即计算到。
-					</p>
-					<section>
-						<h4></h4>
-						<p></p>
-						<article></article>
-					</section>
-					<button
-						onClick={() => {
-							console.log("click!");
-						}}
-					>
-						Add Child
-					</button>
-				</section>
-			</div>
-		</InspectorContext.Provider>
-	);
-};
+		<div className="border h-[400px] w-[900px] flex">
+			<section className={clsx("glow")} ref={rteContainer} onMouseDown={handleEditElement}>
+				<p>
+					Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptatum voluptas minus et maiores a,
+					similique natus expedita tenetur quibusdam officia hic tempore atque iure odit error, veniam
+					consequatur, sequi eligendi.
+				</p>
+			</section>
+			<aside className="min-w-[260px] shrink-0 border-l px-2">
+				{/* <div className="margin-area bg-orange-200">
+						<div className="padding-area bg-green-200">
+							<div className={clsx("content-area bg-blue-200")}>110 &times; 140</div>
+						</div>
+					</div> */}
+        <div className="grid grid-cols-4 gap-x-2">
+				  <InputNumber className="col-span-2" label="Width" direction="vertical"/>
+				  <InputNumber className="col-span-2" label="Height" direction="vertical"/>
 
-Inspector.ComponentSelector = () => {
-	const { componentList } = useContext(InspectorContext);
-	const [componentListOpen, setComponentListOpen] = useState(false);
-	const [chosenComponent, setChosenComponent] = useState<ReactNode>(null);
-
-	const handleOpenList = () => {
-		setComponentListOpen((s) => !s);
-	};
-
-	const chooseComponent = (element: ReactNode = null) => {
-		setChosenComponent(element);
-	};
-
-	return (
-		<div className="relative border w-[500px] h-[60px]" onClick={handleOpenList}>
-			{chosenComponent}
-			<ul className={clsx("absolute top-full left-0 w-full h-max", { hidden: !componentListOpen })}>
-				{componentList.map((ItemComponent, index) => (
-					<li className="h-24 p-6" key={index} onClick={() => chooseComponent(<ItemComponent />)}>
-						<ItemComponent />
-					</li>
-				))}
-			</ul>
+        </div>
+			</aside>
 		</div>
 	);
 };

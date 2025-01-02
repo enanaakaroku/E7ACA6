@@ -53,4 +53,3 @@ export function canSetDimensions(element: HTMLElement) {
 	}
 	return true;
 }
-export function checkElementAncestor(element: HTMLElement, ancestor: HTMLElement) {}
