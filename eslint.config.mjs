@@ -11,18 +11,6 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
-  {
-    rules: {
-      'react/self-closing-comp': [
-        'warn',
-        {
-          component: true, // 对组件启用自闭合规则
-          html: true, // 对 HTML 标签启用自闭合规则
-        },
-      ],
-    },
-  }
-
 ];
 
 export default eslintConfig;

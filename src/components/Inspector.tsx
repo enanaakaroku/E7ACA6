@@ -3,8 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { canSetDimensions, getMousePositionInElementArea, insertAfter } from "@/utils/pub";
-import { InputNumber } from "./ui/input/InputNumber";
+import { lengthUnitList } from "@/lib/utils";
 import "@/styles/inspector.css";
+import {
+	Select,
+	SelectContent,
+	SelectGroup,
+	SelectItem,
+	SelectLabel,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { InputWithSelect } from "./form-controls/InputWithSelect";
 
 const explodedHandleEvent = (event: MouseEvent) => {
 	console.log(event);
@@ -254,7 +266,7 @@ export const Inspector = () => {
 	}, [highlight]);
 
 	return (
-		<div className="border h-[400px] w-[900px] flex">
+		<div className="border h-[600px] w-[900px] flex">
 			<section className={clsx("glow")} ref={rteContainer} onMouseDown={handleEditElement}>
 				<p>
 					Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptatum voluptas minus et maiores a,
@@ -262,17 +274,144 @@ export const Inspector = () => {
 					consequatur, sequi eligendi.
 				</p>
 			</section>
-			<aside className="min-w-[260px] shrink-0 border-l px-2">
+			<aside className="w-[260px] shrink-0 border-l px-2">
 				{/* <div className="margin-area bg-orange-200">
 						<div className="padding-area bg-green-200">
 							<div className={clsx("content-area bg-blue-200")}>110 &times; 140</div>
 						</div>
 					</div> */}
-        <div className="grid grid-cols-4 gap-x-2">
-				  <InputNumber className="col-span-2" label="Width" direction="vertical"/>
-				  <InputNumber className="col-span-2" label="Height" direction="vertical"/>
-
-        </div>
+				<div className="grid grid-cols-6 gap-x-2">
+					<div className="col-span-3">
+						<Label htmlFor="width">Width</Label>
+						<InputWithSelect
+							id="width"
+							type="number"
+							min={0}
+							defaultValue={0}
+							selectOptions={lengthUnitList}
+						/>
+					</div>
+					<div className="col-span-3">
+						<Label htmlFor="height">Height</Label>
+						<InputWithSelect
+							id="height"
+							type="number"
+							min={0}
+							defaultValue={0}
+							selectOptions={lengthUnitList}
+						/>
+					</div>
+					<div className="col-span-2 space-y-2">
+						<Label>Margin</Label>
+						<div className="flex items-center space-x-1 justify-between">
+							<Label htmlFor="margin-top" title="Top">
+								T
+							</Label>
+							<InputWithSelect
+								size="sm"
+								id="margin-top"
+								type="number"
+								min={0}
+								defaultValue={0}
+								selectOptions={lengthUnitList}
+							/>
+						</div>
+						<div className="flex items-center space-x-1 justify-between">
+							<Label htmlFor="margin-right" title="Right">
+								R
+							</Label>
+							<InputWithSelect
+								size="sm"
+								id="margin-right"
+								type="number"
+								min={0}
+								defaultValue={0}
+								selectOptions={lengthUnitList}
+							/>
+						</div>
+						<div className="flex items-center space-x-1 justify-between">
+							<Label htmlFor="margin-bottom" title="Bottom">
+								B
+							</Label>
+							<InputWithSelect
+								size="sm"
+								id="margin-bottom"
+								type="number"
+								min={0}
+								defaultValue={0}
+								selectOptions={lengthUnitList}
+							/>
+						</div>
+						<div className="flex items-center space-x-1 justify-between">
+							<Label htmlFor="margin-left" title="Left">
+								L
+							</Label>
+							<InputWithSelect
+								size="sm"
+								id="margin-left"
+								type="number"
+								min={0}
+								defaultValue={0}
+								selectOptions={lengthUnitList}
+							/>
+						</div>
+					</div>
+					<div className="col-span-2 space-y-2">
+						<Label>Padding</Label>
+						<div className="flex items-center space-x-1 justify-between">
+							<Label htmlFor="padding-top" title="Top">
+								T
+							</Label>
+							<InputWithSelect
+								size="sm"
+								id="padding-top"
+								type="number"
+								min={0}
+								defaultValue={0}
+								selectOptions={lengthUnitList}
+							/>
+						</div>
+						<div className="flex items-center space-x-1 justify-between">
+							<Label htmlFor="padding-right" title="Right">
+								R
+							</Label>
+							<InputWithSelect
+								size="sm"
+								id="padding-right"
+								type="number"
+								min={0}
+								defaultValue={0}
+								selectOptions={lengthUnitList}
+							/>
+						</div>
+						<div className="flex items-center space-x-1 justify-between">
+							<Label htmlFor="padding-bottom" title="Bottom">
+								B
+							</Label>
+							<InputWithSelect
+								size="sm"
+								id="padding-bottom"
+								type="number"
+								min={0}
+								defaultValue={0}
+								selectOptions={lengthUnitList}
+							/>
+						</div>
+						<div className="flex items-center space-x-1 justify-between">
+							<Label htmlFor="padding-left" title="Left">
+								L
+							</Label>
+							<InputWithSelect
+								size="sm"
+								id="padding-left"
+								type="number"
+								min={0}
+								defaultValue={0}
+								selectOptions={lengthUnitList}
+							/>
+						</div>
+					</div>
+				</div>
 			</aside>
 		</div>
 	);
