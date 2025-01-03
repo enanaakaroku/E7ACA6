@@ -22,3 +22,16 @@ export const lengthUnitList = [
 	"ex",
 	"ch",
 ];
+
+export const borderStyles = [
+	"none", // 无边框
+	"solid", // 实线边框
+	"dashed", // 虚线边框
+	"dotted", // 点状边框
+	"double", // 双实线边框
+	"groove", // 3D 凹槽边框（根据背景颜色）
+	"ridge", // 3D 脊状边框（根据背景颜色）
+	"inset", // 3D 内嵌边框（根据背景颜色）
+	"outset", // 3D 外凸边框（根据背景颜色）
+	"hidden", // 隐藏边框（与 `none` 类似，但用于表格元素时有特殊意义）
+];
