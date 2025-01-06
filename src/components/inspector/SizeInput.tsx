@@ -1,4 +1,4 @@
-import { decomposeValue } from "@/utils/pub";
+import { decomposeValue } from "@/lib/pub";
 import { cn, lengthUnitList, borderRadiusUnits } from "@/lib/utils";
 import {
 	Select,
@@ -11,11 +11,11 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { useImmer } from "use-immer";
+import { useEffect, useId } from "react";
 
 export function SizeInput({
 	id,
 	value,
-	defaultValue = "",
 	type,
 	size,
 	className,
@@ -24,7 +24,6 @@ export function SizeInput({
 }: {
 	id: string;
 	value: string;
-	defaultValue?: string;
 	type: "length" | "radius";
 	className?: string;
 	size?: "sm";
@@ -32,6 +31,10 @@ export function SizeInput({
 	onChange: (size: string) => any;
 }) {
 	const [sizeValue, setSizeValue] = useImmer(decomposeValue(value));
+	useEffect(() => {
+		setSizeValue(decomposeValue(value));
+	}, [value]);
+
 	const unitOptionsMap = {
 		length: lengthUnitList,
 		radius: borderRadiusUnits,
@@ -44,6 +47,7 @@ export function SizeInput({
 		const updatedSizeValue = sizeValue.map((val, i) => (i === index ? value : val)).join("");
 		onChange(updatedSizeValue);
 	};
+
 	return (
 		<div
 			className={cn(
@@ -56,6 +60,7 @@ export function SizeInput({
 				type="number"
 				id={id}
 				value={sizeValue[0]}
+				min={min}
 				onChange={(e) => {
 					handleChange(0, e.target.value);
 				}}

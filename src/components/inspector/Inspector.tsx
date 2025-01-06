@@ -9,12 +9,11 @@ import {
 	removeControlLayer,
 	resizeHandleEvent,
 	getElementStyle,
-} from "@/utils/pub";
+} from "@/lib/pub";
 import { ElementBoxModel } from "./ElementBoxModel";
 
 export const Inspector = () => {
 	const rteContainer = useRef<HTMLElement>(null);
-	const paragraphRef = useRef<HTMLParagraphElement>(null);
 	const [editingElement, setEditingElement] = useState<HTMLElement | null>(null);
 	const [highlight] = useState<Element | null>(null);
 
@@ -77,23 +76,25 @@ export const Inspector = () => {
 
 	const [isElementReady, setIsElementReady] = useState(false);
 
-	useEffect(() => {
-		if (paragraphRef.current) {
-			setIsElementReady(true); // 确保元素已挂载后再显示
-		}
-	}, []);
-
 	return (
 		<div className="border h-[600px] flex">
 			<section className="w-[680px]" ref={rteContainer} onMouseDown={handleEditElement}>
-				<p ref={paragraphRef}>
+				<p>
 					Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptatum voluptas minus et maiores a,
 					similique natus expedita tenetur quibusdam officia hic tempore atque iure odit error, veniam
 					consequatur, sequi eligendi.
 				</p>
+				<p className="mt-10">
+					Lorem ipsum dolor sit amet consectetur adipisicing elit. Accusantium illo, hic ratione dolores
+					repellendus mollitia ipsam nam consectetur optio repudiandae, maxime odit, iure ipsum error! Atque
+					praesentium fugit totam laborum! <br />
+					Lorem ipsum dolor sit amet consectetur adipisicing elit. Sapiente labore rerum eos nemo ducimus
+					dolorum, omnis, temporibus eligendi sint, totam architecto deleniti adipisci voluptate nisi facilis
+					placeat error aspernatur at.
+				</p>
 			</section>
 			<aside className="w-[260px] shrink-0 border-l px-2">
-				{isElementReady && paragraphRef.current && <ElementBoxModel element={paragraphRef.current} />}
+				{editingElement && <ElementBoxModel element={editingElement} />}
 			</aside>
 		</div>
 	);

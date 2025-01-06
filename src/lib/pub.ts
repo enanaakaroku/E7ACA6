@@ -1,4 +1,5 @@
-import { ElementBoxStyle } from "@/components/inspector/inspector";
+import { ElementBoxStyle } from "@/components/inspector/declare";
+import { camelCase, capitalize, startCase } from "lodash";
 
 export function generateRandomId() {
 	return `${Math.random().toString(36).slice(2, 11)}`;
@@ -302,8 +303,66 @@ export function rgbToHex(rgb: string) {
 }
 
 // 输入shorthand 输出所有可修改的详细属性
-export function generateCSSDetailProperties(type: "size" | "margin" | "padding" | "border" | "border-radius") {
+type CSSDetailProperties<T extends "size" | "margin" | "padding" | "border" | "radius"> = T extends "border"
+	? {
+			label: string;
+			id: string;
+			width: keyof ElementBoxStyle;
+			style: keyof ElementBoxStyle;
+			color: keyof ElementBoxStyle;
+	  }[]
+	: { label: string; id: keyof ElementBoxStyle }[];
+
+export function generateCSSDetailProperties<T extends "size" | "margin" | "padding" | "border" | "radius">(
+	type: T
+): CSSDetailProperties<T> {
 	const map = {
-		size: [],
+		size: [
+			{ label: "Width", id: "width" },
+			{ label: "Height", id: "height" },
+		],
+		margin: [
+			{ label: "T", id: "marginTop" },
+			{ label: "R", id: "marginRight" },
+			{ label: "B", id: "marginBottom" },
+			{ label: "L", id: "marginLeft" },
+		],
+		padding: [
+			{ label: "T", id: "paddingTop" },
+			{ label: "R", id: "paddingRight" },
+			{ label: "B", id: "paddingBottom" },
+			{ label: "L", id: "paddingLeft" },
+		],
+		border: [
+			{ label: "T", id: "borderTop", width: "borderTopWidth", style: "borderTopStyle", color: "borderTopColor" },
+			{
+				label: "R",
+				id: "borderRight",
+				width: "borderRightWidth",
+				style: "borderRightStyle",
+				color: "borderRightColor",
+			},
+			{
+				label: "B",
+				id: "borderBottom",
+				width: "borderBottomWidth",
+				style: "borderBottomStyle",
+				color: "borderBottomColor",
+			},
+			{
+				label: "L",
+				id: "borderLeft",
+				width: "borderLeftWidth",
+				style: "borderLeftStyle",
+				color: "borderLeftColor",
+			},
+		],
+		radius: [
+			{ label: "TL", id: "borderTopLeftRadius" },
+			{ label: "TR", id: "borderTopRightRadius" },
+			{ label: "BL", id: "borderBottomLeftRadius" },
+			{ label: "BR", id: "borderBottomRightRadius" },
+		],
 	};
+	return map[type] as CSSDetailProperties<T>;
 }
