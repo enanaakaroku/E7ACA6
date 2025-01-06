@@ -1,3 +1,5 @@
+import { ElementBoxStyle } from "@/components/inspector/inspector";
+
 export function generateRandomId() {
 	return `${Math.random().toString(36).slice(2, 11)}`;
 }
@@ -233,3 +235,75 @@ export const moveHandleEvent = (mouseDownEvent: React.MouseEvent<HTMLElement>, h
 	document.addEventListener("mousemove", mouseMove);
 	document.addEventListener("mouseup", mouseUp);
 };
+
+export function getElementStyle(element: HTMLElement) {}
+
+export function decomposeValue(value: string): [number: number | string, unit: string | undefined] {
+	// 检查是否是数值 + 单位
+	const match = value.match(/^([+-]?\d*\.?\d+)([a-zA-Z%]*)$/);
+	if (match) {
+		const [_, number, unit] = match;
+		return [parseFloat(number), unit || undefined];
+	}
+
+	// 如果不是数值，直接返回值作为数组的第一位
+	return [value, undefined];
+}
+
+export function usedComputedStyle(element: HTMLElement): ElementBoxStyle {
+	const style = window.getComputedStyle(element);
+	return {
+		width: style.width,
+		height: style.height,
+		marginLeft: style.marginLeft,
+		marginTop: style.marginTop,
+		marginRight: style.marginRight,
+		marginBottom: style.marginBottom,
+		paddingLeft: style.paddingLeft,
+		paddingTop: style.paddingTop,
+		paddingRight: style.paddingRight,
+		paddingBottom: style.paddingBottom,
+		borderLeftWidth: style.borderLeftWidth,
+		borderLeftStyle: style.borderLeftStyle,
+		borderLeftColor: rgbToHex(style.borderLeftColor),
+		borderRightWidth: style.borderRightWidth,
+		borderRightStyle: style.borderRightStyle,
+		borderRightColor: rgbToHex(style.borderRightColor),
+		borderTopWidth: style.borderTopWidth,
+		borderTopStyle: style.borderTopStyle,
+		borderTopColor: rgbToHex(style.borderTopColor),
+		borderBottomWidth: style.borderBottomWidth,
+		borderBottomStyle: style.borderBottomStyle,
+		borderBottomColor: rgbToHex(style.borderBottomColor),
+		borderTopLeftRadius: style.borderTopLeftRadius,
+		borderTopRightRadius: style.borderTopRightRadius,
+		borderBottomLeftRadius: style.borderBottomLeftRadius,
+		borderBottomRightRadius: style.borderBottomRightRadius,
+	};
+}
+
+export function kebabToCamel(str: string) {
+	return str
+		.split("-")
+		.map((word, index) => {
+			return index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1);
+		})
+		.join("");
+}
+
+export function rgbToHex(rgb: string) {
+	// 提取RGB值
+	const rgbArr = rgb.match(/\d+/g);
+	if (!rgbArr) return rgb;
+	let [r, g, b] = rgbArr.map(Number);
+
+	// 转换为Hex格式
+	return `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1).toUpperCase()}`;
+}
+
+// 输入shorthand 输出所有可修改的详细属性
+export function generateCSSDetailProperties(type: "size" | "margin" | "padding" | "border" | "border-radius") {
+	const map = {
+		size: [],
+	};
+}

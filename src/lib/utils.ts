@@ -35,3 +35,5 @@ export const borderStyles = [
 	"outset", // 3D 外凸边框（根据背景颜色）
 	"hidden", // 隐藏边框（与 `none` 类似，但用于表格元素时有特殊意义）
 ];
+
+export const borderRadiusUnits = ["px", "em", "rem", "%", "cm", "mm", "in", "pt", "pc"];

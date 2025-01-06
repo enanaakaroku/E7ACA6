@@ -1,0 +1,28 @@
+export type ElementBoxStyle = {
+	width: string;
+	height: string;
+	marginLeft: string;
+	marginTop: string;
+	marginRight: string;
+	marginBottom: string;
+	paddingLeft: string;
+	paddingTop: string;
+	paddingRight: string;
+	paddingBottom: string;
+	borderLeftWidth: string;
+	borderLeftStyle: string;
+	borderLeftColor: string;
+	borderRightWidth: string;
+	borderRightStyle: string;
+	borderRightColor: string;
+	borderTopWidth: string;
+	borderTopStyle: string;
+	borderTopColor: string;
+	borderBottomWidth: string;
+	borderBottomStyle: string;
+	borderBottomColor: string;
+	borderTopLeftRadius: string;
+	borderTopRightRadius: string;
+	borderBottomLeftRadius: string;
+	borderBottomRightRadius: string;
+};
