@@ -1,5 +1,6 @@
 import { ElementBoxStyle } from "@/components/inspector/declare";
 import { camelCase, capitalize, startCase } from "lodash";
+import { editingStyleList } from "./utils";
 
 export function generateRandomId() {
 	return `${Math.random().toString(36).slice(2, 11)}`;
@@ -80,7 +81,7 @@ export const createExplodedHandleElement = () => {
 	return span;
 };
 export const createControlLayer = (element: HTMLElement) => {
-	element.classList.add("relative", "border-2");
+	element.classList.add("relative");
 	const resizeHandle = createResizeHandleElement();
 	const moveHandle = createMoveHandleElement();
 	const explodedHandle = createExplodedHandleElement();
@@ -237,8 +238,6 @@ export const moveHandleEvent = (mouseDownEvent: React.MouseEvent<HTMLElement>, h
 	document.addEventListener("mouseup", mouseUp);
 };
 
-export function getElementStyle(element: HTMLElement) {}
-
 export function decomposeValue(value: string): [number: number | string, unit: string | undefined] {
 	// 检查是否是数值 + 单位
 	const match = value.match(/^([+-]?\d*\.?\d+)([a-zA-Z%]*)$/);
@@ -253,34 +252,25 @@ export function decomposeValue(value: string): [number: number | string, unit: s
 
 export function usedComputedStyle(element: HTMLElement): ElementBoxStyle {
 	const style = window.getComputedStyle(element);
-	return {
-		width: style.width,
-		height: style.height,
-		marginLeft: style.marginLeft,
-		marginTop: style.marginTop,
-		marginRight: style.marginRight,
-		marginBottom: style.marginBottom,
-		paddingLeft: style.paddingLeft,
-		paddingTop: style.paddingTop,
-		paddingRight: style.paddingRight,
-		paddingBottom: style.paddingBottom,
-		borderLeftWidth: style.borderLeftWidth,
-		borderLeftStyle: style.borderLeftStyle,
-		borderLeftColor: rgbToHex(style.borderLeftColor),
-		borderRightWidth: style.borderRightWidth,
-		borderRightStyle: style.borderRightStyle,
-		borderRightColor: rgbToHex(style.borderRightColor),
-		borderTopWidth: style.borderTopWidth,
-		borderTopStyle: style.borderTopStyle,
-		borderTopColor: rgbToHex(style.borderTopColor),
-		borderBottomWidth: style.borderBottomWidth,
-		borderBottomStyle: style.borderBottomStyle,
-		borderBottomColor: rgbToHex(style.borderBottomColor),
-		borderTopLeftRadius: style.borderTopLeftRadius,
-		borderTopRightRadius: style.borderTopRightRadius,
-		borderBottomLeftRadius: style.borderBottomLeftRadius,
-		borderBottomRightRadius: style.borderBottomRightRadius,
-	};
+	const resObj = {} as ElementBoxStyle;
+	for (const v of editingStyleList) {
+		resObj[v] = style[v];
+		if (v.match(/Color/i)) {
+			resObj[v] = rgbToHex(style[v]);
+		}
+	}
+	return resObj;
+}
+
+export function initEditingStyles(): ElementBoxStyle {
+	const resObj = {} as ElementBoxStyle;
+	for (const v of editingStyleList) {
+		resObj[v] = "0px";
+		if (v.match(/Color/i)) {
+			resObj[v] = "#000";
+		}
+	}
+	return resObj;
 }
 
 export function kebabToCamel(str: string) {

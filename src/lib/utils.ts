@@ -1,3 +1,4 @@
+import { ElementBoxStyle } from "@/components/inspector/declare";
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -37,3 +38,32 @@ export const borderStyles = [
 ];
 
 export const borderRadiusUnits = ["px", "em", "rem", "%", "cm", "mm", "in", "pt", "pc"];
+
+export const editingStyleList: Array<keyof ElementBoxStyle> = [
+	"width",
+	"height",
+	"marginLeft",
+	"marginTop",
+	"marginRight",
+	"marginBottom",
+	"paddingLeft",
+	"paddingTop",
+	"paddingRight",
+	"paddingBottom",
+	"borderLeftWidth",
+	"borderLeftStyle",
+	"borderLeftColor",
+	"borderRightWidth",
+	"borderRightStyle",
+	"borderRightColor",
+	"borderTopWidth",
+	"borderTopStyle",
+	"borderTopColor",
+	"borderBottomWidth",
+	"borderBottomStyle",
+	"borderBottomColor",
+	"borderTopLeftRadius",
+	"borderTopRightRadius",
+	"borderBottomLeftRadius",
+	"borderBottomRightRadius",
+];

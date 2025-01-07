@@ -3,23 +3,13 @@ import { PlainSelect } from "../form-controls/PlainSelect";
 import { Input } from "@/components/ui/input";
 import { cn, borderStyles } from "@/lib/utils";
 import { SizeInput } from "./SizeInput";
-import { useImmer } from "use-immer";
-import { usedComputedStyle, kebabToCamel, rgbToHex, generateCSSDetailProperties } from "@/lib/pub";
-import { useCallback, useEffect, useState } from "react";
-import { camelCase, kebabCase, throttle } from "lodash";
-import { ElementBoxStyle } from "./declare";
+import { generateCSSDetailProperties } from "@/lib/pub";
+import { useCallback, useContext } from "react";
+import { kebabCase, throttle } from "lodash";
+import { InspectorContext } from "./Inspector";
 
-export function ElementBoxModel({ element }: { element: HTMLElement }) {
-	const [styles, setStyles] = useImmer<ElementBoxStyle>({ ...usedComputedStyle(element) });
-	useEffect(() => {
-		console.log("change to", element);
-
-		setStyles(usedComputedStyle(element));
-	}, [element]);
-
-	useEffect(() => {
-		console.log("styles:", styles);
-	}, [styles]);
+export function ElementBoxModel() {
+	const { editingStyles, setEditingStyles } = useContext(InspectorContext);
 
 	const handleThrottle = useCallback(
 		throttle((callback) => {
@@ -37,13 +27,12 @@ export function ElementBoxModel({ element }: { element: HTMLElement }) {
 							id={kebabCase(item.id)}
 							type="length"
 							min={0}
-							value={styles[item.id]}
+							value={editingStyles[item.id]}
 							onChange={(value) => {
 								console.log(value);
-								setStyles((draft) => {
+								setEditingStyles((draft) => {
 									draft[item.id] = value;
 								});
-								element.style[item.id] = value;
 							}}
 						/>
 					</div>
@@ -61,13 +50,12 @@ export function ElementBoxModel({ element }: { element: HTMLElement }) {
 							id={kebabCase(item.id)}
 							type="length"
 							min={0}
-							value={styles[item.id]}
+							value={editingStyles[item.id]}
 							onChange={(value) => {
 								console.log(value);
-								setStyles((draft) => {
+								setEditingStyles((draft) => {
 									draft[item.id] = value;
 								});
-								element.style[item.id] = value;
 							}}
 						/>
 					</div>
@@ -87,13 +75,12 @@ export function ElementBoxModel({ element }: { element: HTMLElement }) {
 							id={kebabCase(item.id)}
 							type="length"
 							min={0}
-							value={styles[item.id]}
+							value={editingStyles[item.id]}
 							onChange={(value) => {
 								console.log(value);
-								setStyles((draft) => {
+								setEditingStyles((draft) => {
 									draft[item.id] = value;
 								});
-								element.style[item.id] = value;
 							}}
 						/>
 					</div>
@@ -112,38 +99,35 @@ export function ElementBoxModel({ element }: { element: HTMLElement }) {
 							id={kebabCase(item.width)}
 							type="length"
 							min={0}
-							value={styles[item.width]}
+							value={editingStyles[item.width]}
 							onChange={(value) => {
 								console.log(value);
-								setStyles((draft) => {
+								setEditingStyles((draft) => {
 									draft[item.width] = value;
 								});
-								element.style[item.width] = value;
 							}}
 						/>
 						<PlainSelect
 							options={borderStyles}
 							size="sm"
-							value={styles[item.style]}
+							value={editingStyles[item.style]}
 							onChange={(value) => {
 								console.log(value);
-								setStyles((draft) => {
+								setEditingStyles((draft) => {
 									draft[item.style] = value;
 								});
-								element.style[item.style] = value;
 							}}
 						></PlainSelect>
 						<Input
 							type="color"
-							value={styles[item.color]}
+							value={editingStyles[item.color]}
 							className="w-24 h-7 border-zinc-300 focus:ring-0 focus:none px-1 py-0 cursor-pointer"
 							onChange={(e) =>
 								handleThrottle(() => {
-									setStyles((draft) => {
+									setEditingStyles((draft) => {
 										draft[item.color] = e.target.value;
 									});
 									console.log(e.target.value);
-									element.style[item.color] = e.target.value;
 								})
 							}
 						/>
@@ -164,13 +148,12 @@ export function ElementBoxModel({ element }: { element: HTMLElement }) {
 							id={kebabCase(item.id)}
 							type="radius"
 							min={0}
-							value={styles[item.id]}
+							value={editingStyles[item.id]}
 							onChange={(value) => {
 								console.log(value);
-								setStyles((draft) => {
+								setEditingStyles((draft) => {
 									draft[item.id] = value;
 								});
-								element.style[item.id] = value;
 							}}
 						/>
 					</div>

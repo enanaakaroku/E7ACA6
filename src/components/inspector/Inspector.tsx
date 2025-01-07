@@ -1,28 +1,63 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import clsx from "clsx";
+import { createContext, useEffect, useRef } from "react";
+
 import {
 	canSetDimensions,
 	createControlLayer,
+	initEditingStyles,
 	moveHandleEvent,
 	removeControlLayer,
 	resizeHandleEvent,
-	getElementStyle,
+	usedComputedStyle,
 } from "@/lib/pub";
 import { ElementBoxModel } from "./ElementBoxModel";
+import { ElementController } from "./ElementController";
+import { ElementBoxStyle } from "./declare";
+import { useImmer } from "use-immer";
+import type { Updater } from "use-immer";
+
+// Context 里应该有什么？
+// - 存储编辑中元素的新样式
+// - 为编辑中元素设置新样式的事件处理器
+
+export const InspectorContext = createContext<{
+	editingElement: HTMLElement | null;
+	editingStyles: ElementBoxStyle;
+	setEditingStyles: Updater<ElementBoxStyle>;
+}>({
+	editingElement: null,
+	editingStyles: initEditingStyles(),
+	setEditingStyles: () => {},
+});
 
 export const Inspector = () => {
 	const rteContainer = useRef<HTMLElement>(null);
-	const [editingElement, setEditingElement] = useState<HTMLElement | null>(null);
-	const [highlight] = useState<Element | null>(null);
+	const [editingElement, setEditingElement] = useImmer<HTMLElement | null>(null);
+	const [editingStyles, setEditingStyles] = useImmer<ElementBoxStyle>(initEditingStyles());
+
+	useEffect(() => {
+		if (!editingElement) return;
+		setEditingStyles(usedComputedStyle(editingElement));
+		// return () => {
+		//   setEditingStyled({})
+		// };
+	}, [editingElement]);
+
+	useEffect(() => {
+		if (!editingElement) return;
+		for (const key in editingStyles) {
+			if (editingStyles.hasOwnProperty(key)) {
+				editingElement.style[key as keyof ElementBoxStyle] = editingStyles[key as keyof ElementBoxStyle];
+			}
+		}
+	}, [editingStyles]);
 
 	const handleEditElement = (event: React.MouseEvent<HTMLElement>) => {
 		const target = event.target as HTMLElement;
 		console.log(target);
 
 		if (target === event.currentTarget) {
-			// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 			editingElement && removeControlLayer(editingElement);
 			setEditingElement(null);
 			return;
@@ -63,39 +98,31 @@ export const Inspector = () => {
 		}
 	};
 
-	useEffect(() => {
-		if (highlight) {
-			highlight.classList.add("ring-2", "ring-blue-500");
-		}
-		return () => {
-			if (highlight) {
-				highlight.classList.remove("ring-2", "ring-blue-500");
-			}
-		};
-	}, [highlight]);
-
-	const [isElementReady, setIsElementReady] = useState(false);
-
 	return (
-		<div className="border h-[600px] flex">
-			<section className="w-[680px]" ref={rteContainer} onMouseDown={handleEditElement}>
-				<p>
-					Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptatum voluptas minus et maiores a,
-					similique natus expedita tenetur quibusdam officia hic tempore atque iure odit error, veniam
-					consequatur, sequi eligendi.
-				</p>
-				<p className="mt-10">
-					Lorem ipsum dolor sit amet consectetur adipisicing elit. Accusantium illo, hic ratione dolores
-					repellendus mollitia ipsam nam consectetur optio repudiandae, maxime odit, iure ipsum error! Atque
-					praesentium fugit totam laborum! <br />
-					Lorem ipsum dolor sit amet consectetur adipisicing elit. Sapiente labore rerum eos nemo ducimus
-					dolorum, omnis, temporibus eligendi sint, totam architecto deleniti adipisci voluptate nisi facilis
-					placeat error aspernatur at.
-				</p>
-			</section>
-			<aside className="w-[260px] shrink-0 border-l px-2">
-				{editingElement && <ElementBoxModel element={editingElement} />}
-			</aside>
-		</div>
+		<InspectorContext.Provider value={{ editingElement, editingStyles, setEditingStyles }}>
+			<div className="border h-[600px] flex">
+				<section className="w-[680px]" ref={rteContainer} onMouseDown={handleEditElement}>
+					<p>
+						Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptatum voluptas minus et maiores a,
+						similique natus expedita tenetur quibusdam officia hic tempore atque iure odit error, veniam
+						consequatur, sequi eligendi.
+					</p>
+					<p className="mt-10">
+						Lorem ipsum dolor sit amet consectetur adipisicing elit. Accusantium illo, hic ratione dolores
+						repellendus mollitia ipsam nam consectetur optio repudiandae, maxime odit, iure ipsum error!
+						Atque praesentium fugit totam laborum! <br />
+						Lorem ipsum dolor sit amet consectetur adipisicing elit. Sapiente labore rerum eos nemo ducimus
+						dolorum, omnis, temporibus eligendi sint, totam architecto deleniti adipisci voluptate nisi
+						facilis placeat error aspernatur at.
+					</p>
+
+					<div className="w-14 h-10 border-4 border-zinc-200 relative">
+						<div className="absolute left-0 top-0 w-full h-5 bg-slate-500"></div>
+					</div>
+					{editingElement && <ElementController />}
+				</section>
+				<aside className="w-[260px] shrink-0 border-l px-2">{editingElement && <ElementBoxModel />}</aside>
+			</div>
+		</InspectorContext.Provider>
 	);
 };
