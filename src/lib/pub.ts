@@ -1,6 +1,7 @@
 import { ElementBoxStyle } from "@/components/inspector/declare";
-import { camelCase, capitalize, startCase } from "lodash";
+import { camelCase, capitalize, isPlainObject, startCase } from "lodash";
 import { editingStyleList } from "./utils";
+import { Children, ReactNode } from "react";
 
 export function generateRandomId() {
 	return `${Math.random().toString(36).slice(2, 11)}`;
@@ -238,7 +239,8 @@ export const moveHandleEvent = (mouseDownEvent: React.MouseEvent<HTMLElement>, h
 	document.addEventListener("mouseup", mouseUp);
 };
 
-export function decomposeValue(value: string): [number: number | string, unit: string | undefined] {
+// 它一定会用在分解getComputedStyle解析出的值，因此值里不会有关键字存在
+export function decomposeValue(value: string): [number: number, unit: string | undefined] {
 	// 检查是否是数值 + 单位
 	const match = value.match(/^([+-]?\d*\.?\d+)([a-zA-Z%]*)$/);
 	if (match) {
@@ -247,7 +249,7 @@ export function decomposeValue(value: string): [number: number | string, unit: s
 	}
 
 	// 如果不是数值，直接返回值作为数组的第一位
-	return [value, undefined];
+	return [NaN, undefined];
 }
 
 export function usedComputedStyle(element: HTMLElement): ElementBoxStyle {
@@ -271,15 +273,6 @@ export function initEditingStyles(): ElementBoxStyle {
 		}
 	}
 	return resObj;
-}
-
-export function kebabToCamel(str: string) {
-	return str
-		.split("-")
-		.map((word, index) => {
-			return index === 0 ? word : word.charAt(0).toUpperCase() + word.slice(1);
-		})
-		.join("");
 }
 
 export function rgbToHex(rgb: string) {
@@ -355,4 +348,73 @@ export function generateCSSDetailProperties<T extends "size" | "margin" | "paddi
 		],
 	};
 	return map[type] as CSSDetailProperties<T>;
+}
+
+export function formatDOMTree(nodes: ReactNode) {
+	let list: any[] = Children.toArray(nodes);
+	const setId = (arr: any[], pId = "0") => {
+		const resList: any[] = [];
+		arr.forEach((item, index) => {
+			if (typeof item === "string") {
+				resList.push(item);
+				return;
+			}
+			const newId = `${pId}-${index}`;
+			const {
+				props: { children, ...restProps },
+				type,
+			} = item;
+			let newChildren = children;
+			if (Array.isArray(children) && children.length > 0) {
+				newChildren = setId(children, newId);
+			}
+			const tempObj = {
+				props: {
+					...restProps,
+					key: newId,
+					"data-uniq-id": newId,
+					"data-sortable": true,
+					children: newChildren,
+				},
+				type,
+				id: newId,
+			};
+			resList.push(tempObj);
+		});
+		return resList;
+	};
+	return setId(list);
+}
+
+// 找被点击的元素上层中sortable=true的元素
+export function findAncestorSortableElement(startElement: HTMLElement, endElement: HTMLElement) {
+	if (startElement.dataset.sortable === "true") {
+		return startElement;
+	}
+	if (!startElement.parentElement || startElement === endElement) return;
+	return findAncestorSortableElement(startElement.parentElement, endElement);
+}
+
+export function findTreeItemById(list: any[], id: string) {
+	const arr = id.split("-").slice(1);
+	console.log(id);
+	if (arr.length === 0) return;
+
+	return arr
+		.map(Number)
+		.reduce((current: any, h, index) => (index === 0 ? list[h] : current.props.children[h]), list);
+}
+
+export function insertListBefore(list: any[], referId: string, removeId: string) {}
+export function flatTreeNode(tree: any[]): any[] {
+	// let result: any[] = [];
+	// let stack = [...tree]; // 使用栈模拟递归
+	// while (stack.length) {
+	// 	const node = stack.pop();
+	// 	result.push(node);
+	// 	if (node.props.children && node.props.children.length > 0) {
+	// 		stack.push(...node.props.children); // 将子节点推入栈中
+	// 	}
+	// }
+	// return result;
 }

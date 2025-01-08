@@ -66,4 +66,5 @@ export const editingStyleList: Array<keyof ElementBoxStyle> = [
 	"borderTopRightRadius",
 	"borderBottomLeftRadius",
 	"borderBottomRightRadius",
+	"position",
 ];
