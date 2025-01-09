@@ -1,4 +1,4 @@
-import { useContext, useEffect } from "react";
+import { useCallback, useContext, useEffect } from "react";
 import { useImmer } from "use-immer";
 import { GripHorizontal } from "lucide-react";
 import { ResizeIcon } from "./ResizeIcon";
@@ -7,28 +7,65 @@ import { decomposeValue } from "@/lib/pub";
 import { throttle } from "lodash";
 
 export function ElementController() {
-	const { editingElement, editingStyles, setEditingStyles } = useContext(InspectorContext);
-	if (!editingElement) return null;
+	const { editingInfo, setEditingInfo } = useContext(InspectorContext);
+	if (!editingInfo || !setEditingInfo) return null;
 
-	const offset = 5;
 	useEffect(() => {
 		// console.log(editingStyles, editingElementOffset);
-	}, [editingStyles]);
+	}, [editingInfo.editingStyles]);
+	useEffect(() => {
+		if (editingInfo.referenceElement) {
+			setEditingInfo((draft) => {
+				const editingElement = draft.editingElement;
+				const referenceElementId = draft.referenceElement;
+				draft.editingState.isMoving = false;
 
+				if (editingElement && editingElement.dataset.uniqId && referenceElementId) {
+					let editingObj: any = null;
+					const removeRecursive = (arr: any[]) => {
+						for (let i = 0; i < arr.length; i++) {
+							if (arr[i].id === editingElement.dataset.uniqId) {
+								editingObj = arr[i];
+								arr.splice(i, 1);
+								return;
+							}
+							if (arr[i].children && arr[i].children.length > 0) {
+								removeRecursive(arr[i].children);
+							}
+						}
+					};
+					removeRecursive(draft.elementList);
+					const insertRecursive = (arr: any[]) => {
+						for (let i = 0; i < arr.length; i++) {
+							if (arr[i].id === referenceElementId) {
+								arr.splice(i, 0, editingObj);
+								return;
+							}
+							if (arr[i].children && arr[i].children.length > 0) {
+								insertRecursive(arr[i].children);
+							}
+						}
+					};
+					insertRecursive(draft.elementList);
+				}
+				draft.referenceElement = null;
+			});
+		}
+	}, [editingInfo.referenceElement]);
 	const resizeHandle = (mouseDownEvent: React.MouseEvent<HTMLElement>) => {
 		const startX = mouseDownEvent.clientX;
 		const startY = mouseDownEvent.clientY;
 
-		const startWidth = decomposeValue(editingStyles.width)[0];
-		const startHeight = decomposeValue(editingStyles.height)[0];
+		const startWidth = decomposeValue(editingInfo.editingStyles.width)[0];
+		const startHeight = decomposeValue(editingInfo.editingStyles.height)[0];
 
 		const mouseMove = throttle((mouseMoveEvent: MouseEvent) => {
-			if (!editingElement) return;
+			if (!editingInfo.editingElement) return;
 			const newWidth = Math.max(0, startWidth + (mouseMoveEvent.clientX - startX));
 			const newHeight = Math.max(0, startHeight + (mouseMoveEvent.clientY - startY));
-			setEditingStyles((draft) => {
-				draft.width = `${newWidth}px`;
-				draft.height = `${newHeight}px`;
+			setEditingInfo((draft) => {
+				draft.editingStyles.width = `${newWidth}px`;
+				draft.editingStyles.height = `${newHeight}px`;
 			});
 		}, 200);
 		const mouseUp = () => {
@@ -44,17 +81,23 @@ export function ElementController() {
 		const startX = mouseDownEvent.clientX;
 		const startY = mouseDownEvent.clientY;
 
+		setEditingInfo((draft) => {
+			draft.editingState.isMoving = true;
+		});
+
 		const mouseMove = (mouseMoveEvent: MouseEvent) => {
-			if (!editingElement) return;
+			if (!editingInfo.editingElement) return;
 			const mx = mouseMoveEvent.clientX - startX;
 			const my = mouseMoveEvent.clientY - startY;
 
-			editingElement.style.pointerEvents = "none";
-			editingElement.style.translate = `${mx}px ${my}px`;
+			editingInfo.editingElement.style.pointerEvents = "none";
+			editingInfo.editingElement.style.translate = `${mx}px ${my}px`;
 		};
 		const mouseUp = () => {
-			editingElement.style.pointerEvents = "";
-			editingElement.style.translate = "";
+			if (!editingInfo.editingElement) return;
+
+			editingInfo.editingElement.style.pointerEvents = "";
+			editingInfo.editingElement.style.translate = "";
 			document.removeEventListener("mousemove", mouseMove);
 			document.removeEventListener("mouseup", mouseUp);
 		};

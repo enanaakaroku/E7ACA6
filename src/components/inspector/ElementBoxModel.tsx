@@ -9,7 +9,8 @@ import { kebabCase, throttle } from "lodash";
 import { InspectorContext } from "./Inspector";
 
 export function ElementBoxModel() {
-	const { editingStyles, setEditingStyles } = useContext(InspectorContext);
+	const { editingInfo, setEditingInfo } = useContext(InspectorContext);
+	if (!editingInfo || !setEditingInfo) return null;
 
 	const handleThrottle = useCallback(
 		throttle((callback) => {
@@ -27,11 +28,11 @@ export function ElementBoxModel() {
 							id={kebabCase(item.id)}
 							type="length"
 							min={0}
-							value={editingStyles[item.id]}
+							value={editingInfo.editingStyles[item.id]}
 							onChange={(value) => {
 								console.log(value);
-								setEditingStyles((draft) => {
-									draft[item.id] = value;
+								setEditingInfo((draft) => {
+									draft.editingStyles[item.id] = value;
 								});
 							}}
 						/>
@@ -50,11 +51,11 @@ export function ElementBoxModel() {
 							id={kebabCase(item.id)}
 							type="length"
 							min={0}
-							value={editingStyles[item.id]}
+							value={editingInfo.editingStyles[item.id]}
 							onChange={(value) => {
 								console.log(value);
-								setEditingStyles((draft) => {
-									draft[item.id] = value;
+								setEditingInfo((draft) => {
+									draft.editingStyles[item.id] = value;
 								});
 							}}
 						/>
@@ -75,11 +76,11 @@ export function ElementBoxModel() {
 							id={kebabCase(item.id)}
 							type="length"
 							min={0}
-							value={editingStyles[item.id]}
+							value={editingInfo.editingStyles[item.id]}
 							onChange={(value) => {
 								console.log(value);
-								setEditingStyles((draft) => {
-									draft[item.id] = value;
+								setEditingInfo((draft) => {
+									draft.editingStyles[item.id] = value;
 								});
 							}}
 						/>
@@ -99,33 +100,33 @@ export function ElementBoxModel() {
 							id={kebabCase(item.width)}
 							type="length"
 							min={0}
-							value={editingStyles[item.width]}
+							value={editingInfo.editingStyles[item.width]}
 							onChange={(value) => {
 								console.log(value);
-								setEditingStyles((draft) => {
-									draft[item.width] = value;
+								setEditingInfo((draft) => {
+									draft.editingStyles[item.width] = value;
 								});
 							}}
 						/>
 						<PlainSelect
 							options={borderStyles}
 							size="sm"
-							value={editingStyles[item.style]}
+							value={editingInfo.editingStyles[item.style]}
 							onChange={(value) => {
 								console.log(value);
-								setEditingStyles((draft) => {
-									draft[item.style] = value;
+								setEditingInfo((draft) => {
+									draft.editingStyles[item.style] = value;
 								});
 							}}
 						></PlainSelect>
 						<Input
 							type="color"
-							value={editingStyles[item.color]}
+							value={editingInfo.editingStyles[item.color]}
 							className="w-24 h-7 border-zinc-300 focus:ring-0 focus:none px-1 py-0 cursor-pointer"
 							onChange={(e) =>
 								handleThrottle(() => {
-									setEditingStyles((draft) => {
-										draft[item.color] = e.target.value;
+									setEditingInfo((draft) => {
+										draft.editingStyles[item.color] = e.target.value;
 									});
 									console.log(e.target.value);
 								})
@@ -148,11 +149,11 @@ export function ElementBoxModel() {
 							id={kebabCase(item.id)}
 							type="radius"
 							min={0}
-							value={editingStyles[item.id]}
+							value={editingInfo.editingStyles[item.id]}
 							onChange={(value) => {
 								console.log(value);
-								setEditingStyles((draft) => {
-									draft[item.id] = value;
+								setEditingInfo((draft) => {
+									draft.editingStyles[item.id] = value;
 								});
 							}}
 						/>

@@ -5,9 +5,7 @@ export default function Home() {
 		<div className="grid h-screen place-items-center">
 			<Inspector>
 				<p>
-					Lorem ipsum dolor sit amet consectetur adipisicing elit. Voluptatum voluptas minus et maiores a,
-					similique natus expedita tenetur quibusdam officia hic tempore atque iure odit error, veniam
-					consequatur, sequi eligendi.
+					直連法、春田國米圓回園安要兒背屋成占種兌、畫泉者斥刀旦壯欠科急丟科洋亮杯教。帶几更音讀未文青清送更夏、又太個還四交或夏各給牠耍己兩邊假開、品邊昌自服。
 				</p>
 				<p className="mt-10">
 					Lorem ipsum dolor sit amet consectetur adipisicing elit. Accusantium illo, hic ratione dolores

@@ -1,5 +1,5 @@
 import { ElementBoxStyle } from "@/components/inspector/declare";
-import { camelCase, capitalize, isPlainObject, startCase } from "lodash";
+import { camelCase, capitalize, cloneDeep, flattenDeep, isPlainObject, startCase } from "lodash";
 import { editingStyleList } from "./utils";
 import { Children, ReactNode } from "react";
 
@@ -351,39 +351,106 @@ export function generateCSSDetailProperties<T extends "size" | "margin" | "paddi
 }
 
 export function formatDOMTree(nodes: ReactNode) {
+	console.log(nodes);
+
 	let list: any[] = Children.toArray(nodes);
-	const setId = (arr: any[], pId = "0") => {
+	const setId = (arr: any[], pId?: string) => {
 		const resList: any[] = [];
 		arr.forEach((item, index) => {
+			const itemId = pId ? `${pId}-${index}` : `${index}`;
 			if (typeof item === "string") {
-				resList.push(item);
+				resList.push({
+					id: itemId,
+					text: item,
+				});
 				return;
 			}
-			const newId = `${pId}-${index}`;
 			const {
 				props: { children, ...restProps },
 				type,
 			} = item;
-			let newChildren = children;
+			let newChildren: any = {};
 			if (Array.isArray(children) && children.length > 0) {
-				newChildren = setId(children, newId);
+				newChildren.children = setId(children, itemId);
+			} else if (typeof children === "string") {
+				newChildren.children = setId([children], itemId);
 			}
-			const tempObj = {
+			resList.push({
 				props: {
 					...restProps,
-					key: newId,
-					"data-uniq-id": newId,
-					"data-sortable": true,
-					children: newChildren,
+					key: itemId,
 				},
+				...newChildren,
 				type,
-				id: newId,
-			};
-			resList.push(tempObj);
+				id: itemId,
+			});
 		});
 		return resList;
 	};
 	return setId(list);
+}
+
+export function flatDOMTree(nodes: ReactNode) {
+	const list: any[] = Children.toArray(nodes);
+	const setExtraData = (arr: any[], pId?: string) => {
+		const resList: any[] = [];
+		arr.forEach((item, index) => {
+			const itemId = pId ? `${pId}-${index}` : `${index}`;
+			const pid = pId ? { pId } : {};
+			if (typeof item === "string") {
+				resList.push({
+					...pid,
+					id: itemId,
+					text: item,
+				});
+			} else {
+				const {
+					props: { children, ...restProps },
+					type,
+				} = item;
+				resList.push({
+					type,
+					...pid,
+					id: itemId,
+					props: {
+						...restProps,
+						key: itemId,
+						"data-uniq-id": itemId,
+						"data-sortable": true,
+					},
+				});
+				if (Array.isArray(children) && children.length > 0) {
+					resList.push(setExtraData(children, itemId));
+				} else if (typeof children === "string") {
+					resList.push(setExtraData([children], itemId));
+				}
+			}
+		});
+		return resList;
+	};
+	// return setExtraData(list);
+	return flattenDeep(setExtraData(list));
+}
+
+export function treelify(data: any[], idKey = "id", parentKey = "pId", childrenKey = "children") {
+	// 构建树结构
+	const root = cloneDeep(data);
+
+	data.forEach((item) => {
+		const parentId = item[parentKey];
+		if (!parentId) {
+			return;
+		} else {
+			root.forEach((v) => {
+				if (v[idKey] !== parentId) return;
+				if (!v[childrenKey]) v[childrenKey] = [];
+				v[childrenKey].push({ ...item });
+			});
+		}
+	});
+	const result = root.filter((item) => !item[parentKey]);
+
+	return result;
 }
 
 // 找被点击的元素上层中sortable=true的元素
@@ -395,26 +462,50 @@ export function findAncestorSortableElement(startElement: HTMLElement, endElemen
 	return findAncestorSortableElement(startElement.parentElement, endElement);
 }
 
-export function findTreeItemById(list: any[], id: string) {
-	const arr = id.split("-").slice(1);
-	console.log(id);
-	if (arr.length === 0) return;
-
-	return arr
-		.map(Number)
-		.reduce((current: any, h, index) => (index === 0 ? list[h] : current.props.children[h]), list);
+export function findTreeItemInfoById(
+	list: any[],
+	id: string
+): [Record<string, any> | null, number | null, any[] | null] {
+	let res: Record<string, any> | null = null;
+	let resIndex: number | null = null;
+	let resArray: any[] | null = null;
+	const recursive = (arr: any[]) => {
+		for (let i = 0; i < arr.length; i++) {
+			if (arr[i].id === id) {
+				res = arr[i];
+				resIndex = i;
+				resArray = arr;
+				break;
+			}
+			if (arr[i].children && arr[i].children.length > 0) {
+				recursive(arr[i].children);
+			}
+		}
+	};
+	recursive(list);
+	return [res, resIndex, resArray];
 }
 
-export function insertListBefore(list: any[], referId: string, removeId: string) {}
-export function flatTreeNode(tree: any[]): any[] {
-	// let result: any[] = [];
-	// let stack = [...tree]; // 使用栈模拟递归
-	// while (stack.length) {
-	// 	const node = stack.pop();
-	// 	result.push(node);
-	// 	if (node.props.children && node.props.children.length > 0) {
-	// 		stack.push(...node.props.children); // 将子节点推入栈中
-	// 	}
-	// }
-	// return result;
+export function insertListBefore(list: any[], referId: string, removeId: string) {
+	// 扁平化的数组实现方式
+	// const removedItem = list.find((item) => {
+	// 	return item.id === removeId;
+	// });
+	// const referIndex = list.findIndex((item) => {
+	// 	return item.id === referId;
+	// });
+	// if (referIndex === -1 || removedItem) return;
+	// 树形实现方式
+	const [refer, referIndex, referArray] = findTreeItemInfoById(list, referId);
+	const [remove, removeIndex, removeArray] = findTreeItemInfoById(list, removeId);
+	console.log(referId, removeId, referIndex, referArray, remove, removeIndex, removeArray);
+
+	if (removeArray && removeIndex && referArray && referIndex && remove) {
+		console.log(removeArray);
+
+		removeArray.splice(removeIndex);
+		console.log(removeArray);
+		referArray.splice(referIndex, 0, remove);
+	}
+	console.log(list);
 }
