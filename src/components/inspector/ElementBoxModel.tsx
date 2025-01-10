@@ -3,14 +3,24 @@ import { PlainSelect } from "../form-controls/PlainSelect";
 import { Input } from "@/components/ui/input";
 import { cn, borderStyles } from "@/lib/utils";
 import { SizeInput } from "./SizeInput";
-import { generateCSSDetailProperties } from "@/lib/pub";
-import { useCallback, useContext } from "react";
+import { findTreeItem, generateCSSDetailProperties, usedComputedStyle } from "@/lib/pub";
+import { createElement, useCallback, useContext, useEffect } from "react";
 import { kebabCase, throttle } from "lodash";
 import { InspectorContext } from "./Inspector";
+import { useImmer } from "use-immer";
 
 export function ElementBoxModel() {
 	const { editingInfo, setEditingInfo } = useContext(InspectorContext);
 	if (!editingInfo || !setEditingInfo) return null;
+	const { editingNode, editingElement } = editingInfo;
+	if (!editingNode || !editingElement) return null;
+	const [style, setStyle] = useImmer<Record<string, any>>(usedComputedStyle(editingElement));
+
+	useEffect(() => {
+		if (editingNode) {
+			setStyle(usedComputedStyle(editingElement));
+		}
+	}, [editingNode]);
 
 	const handleThrottle = useCallback(
 		throttle((callback) => {
@@ -28,11 +38,14 @@ export function ElementBoxModel() {
 							id={kebabCase(item.id)}
 							type="length"
 							min={0}
-							value={editingInfo.editingStyles[item.id]}
+							value={style[item.id]}
 							onChange={(value) => {
-								console.log(value);
+								setStyle((draft) => {
+									draft[item.id] = value;
+								});
 								setEditingInfo((draft) => {
-									draft.editingStyles[item.id] = value;
+									const node = findTreeItem(draft.elementList, { key: "id", value: editingNode.id });
+									node && (node.props.style[item.id] = value);
 								});
 							}}
 						/>
@@ -51,11 +64,14 @@ export function ElementBoxModel() {
 							id={kebabCase(item.id)}
 							type="length"
 							min={0}
-							value={editingInfo.editingStyles[item.id]}
+							value={style[item.id]}
 							onChange={(value) => {
-								console.log(value);
+								setStyle((draft) => {
+									draft[item.id] = value;
+								});
 								setEditingInfo((draft) => {
-									draft.editingStyles[item.id] = value;
+									const node = findTreeItem(draft.elementList, { key: "id", value: editingNode.id });
+									node && (node.props.style[item.id] = value);
 								});
 							}}
 						/>
@@ -76,11 +92,14 @@ export function ElementBoxModel() {
 							id={kebabCase(item.id)}
 							type="length"
 							min={0}
-							value={editingInfo.editingStyles[item.id]}
+							value={style[item.id]}
 							onChange={(value) => {
-								console.log(value);
+								setStyle((draft) => {
+									draft[item.id] = value;
+								});
 								setEditingInfo((draft) => {
-									draft.editingStyles[item.id] = value;
+									const node = findTreeItem(draft.elementList, { key: "id", value: editingNode.id });
+									node && (node.props.style[item.id] = value);
 								});
 							}}
 						/>
@@ -100,35 +119,47 @@ export function ElementBoxModel() {
 							id={kebabCase(item.width)}
 							type="length"
 							min={0}
-							value={editingInfo.editingStyles[item.width]}
+							value={style[item.width]}
 							onChange={(value) => {
-								console.log(value);
+								setStyle((draft) => {
+									draft[item.width] = value;
+								});
 								setEditingInfo((draft) => {
-									draft.editingStyles[item.width] = value;
+									const node = findTreeItem(draft.elementList, { key: "id", value: editingNode.id });
+									node && (node.props.style[item.width] = value);
 								});
 							}}
 						/>
 						<PlainSelect
 							options={borderStyles}
 							size="sm"
-							value={editingInfo.editingStyles[item.style]}
+							value={style[item.style]}
 							onChange={(value) => {
-								console.log(value);
+								setStyle((draft) => {
+									draft[item.style] = value;
+								});
 								setEditingInfo((draft) => {
-									draft.editingStyles[item.style] = value;
+									const node = findTreeItem(draft.elementList, { key: "id", value: editingNode.id });
+									node && (node.props.style[item.style] = value);
 								});
 							}}
 						></PlainSelect>
 						<Input
 							type="color"
-							value={editingInfo.editingStyles[item.color]}
+							value={style[item.color]}
 							className="w-24 h-7 border-zinc-300 focus:ring-0 focus:none px-1 py-0 cursor-pointer"
 							onChange={(e) =>
 								handleThrottle(() => {
-									setEditingInfo((draft) => {
-										draft.editingStyles[item.color] = e.target.value;
+									setStyle((draft) => {
+										draft[item.color] = e.target.value;
 									});
-									console.log(e.target.value);
+									setEditingInfo((draft) => {
+										const node = findTreeItem(draft.elementList, {
+											key: "id",
+											value: editingNode.id,
+										});
+										node && (node.props.style[item.color] = e.target.value);
+									});
 								})
 							}
 						/>
@@ -149,11 +180,10 @@ export function ElementBoxModel() {
 							id={kebabCase(item.id)}
 							type="radius"
 							min={0}
-							value={editingInfo.editingStyles[item.id]}
+							value={style[item.id]}
 							onChange={(value) => {
-								console.log(value);
-								setEditingInfo((draft) => {
-									draft.editingStyles[item.id] = value;
+								setStyle((draft) => {
+									draft[item.id] = value;
 								});
 							}}
 						/>

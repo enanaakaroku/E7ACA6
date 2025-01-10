@@ -351,8 +351,6 @@ export function generateCSSDetailProperties<T extends "size" | "margin" | "paddi
 }
 
 export function formatDOMTree(nodes: ReactNode) {
-	console.log(nodes);
-
 	let list: any[] = Children.toArray(nodes);
 	const setId = (arr: any[], pId?: string) => {
 		const resList: any[] = [];
@@ -379,6 +377,7 @@ export function formatDOMTree(nodes: ReactNode) {
 				props: {
 					...restProps,
 					key: itemId,
+					style: {},
 				},
 				...newChildren,
 				type,
@@ -485,27 +484,61 @@ export function findTreeItemInfoById(
 	recursive(list);
 	return [res, resIndex, resArray];
 }
-
-export function insertListBefore(list: any[], referId: string, removeId: string) {
-	// 扁平化的数组实现方式
-	// const removedItem = list.find((item) => {
-	// 	return item.id === removeId;
-	// });
-	// const referIndex = list.findIndex((item) => {
-	// 	return item.id === referId;
-	// });
-	// if (referIndex === -1 || removedItem) return;
-	// 树形实现方式
-	const [refer, referIndex, referArray] = findTreeItemInfoById(list, referId);
-	const [remove, removeIndex, removeArray] = findTreeItemInfoById(list, removeId);
-	console.log(referId, removeId, referIndex, referArray, remove, removeIndex, removeArray);
-
-	if (removeArray && removeIndex && referArray && referIndex && remove) {
-		console.log(removeArray);
-
-		removeArray.splice(removeIndex);
-		console.log(removeArray);
-		referArray.splice(referIndex, 0, remove);
+export function findTreeItem(list: any[], { key, value }: { key: string; value: string }) {
+	for (let i = 0; i < list.length; i++) {
+		if (list[i][key] === value) {
+			return list[i];
+		}
+		if (list[i].children && list[i].children > 0) {
+			return findTreeItem(list[i].children, { key, value });
+		}
 	}
-	console.log(list);
+}
+export function insertListBeforeById(list: any[], refer: Record<string, any>, remove: Record<string, any>) {
+	if (refer.id === remove.id) return;
+	let foundRefer = false; // 标记是否已处理 refer
+	let foundRemove = false; // 标记是否已处理 remove
+	for (let i = 0; i < list.length; i++) {
+		console.log(list[i].id, refer.id, remove);
+
+		if (list[i].id === refer.id) {
+			list.splice(i, 0, remove);
+			foundRefer = true; // 更新状态
+		}
+
+		// 如果找到 remove.id
+		if (list[i].id === remove.id) {
+			list.splice(i, 1);
+			foundRemove = true; // 更新状态
+			i--; // 因为 splice 删除元素，索引需要回退
+		}
+		if (foundRefer && foundRemove) {
+			return true;
+		}
+		// if (list[i].children && list[i].children.length > 0) {
+		// 	const found = insertListBeforeById(list[i].children, refer, remove);
+		// 	if (found) return true;
+		// }
+	}
+	return false;
+}
+export function removeItemById(list: any[], id: string) {
+	for (let i = 0; i < list.length; i++) {
+		if (list[i].id === id) {
+			return list.splice(i, 1);
+		}
+		if (list[i].children && list[i].children.length > 0) {
+			removeItemById(list[i].children, id);
+		}
+	}
+}
+export function insertBeforeItemById(list: any[], id: string) {
+	for (let i = 0; i < list.length; i++) {
+		if (list[i].id === id) {
+			return list.splice(i, 0);
+		}
+		if (list[i].children && list[i].children.length > 0) {
+			insertBeforeItemById(list[i].children, id);
+		}
+	}
 }

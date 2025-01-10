@@ -3,72 +3,42 @@ import { useImmer } from "use-immer";
 import { GripHorizontal } from "lucide-react";
 import { ResizeIcon } from "./ResizeIcon";
 import { InspectorContext } from "./Inspector";
-import { decomposeValue } from "@/lib/pub";
+import { decomposeValue, findTreeItem, insertBeforeItemById, insertListBeforeById, removeItemById } from "@/lib/pub";
 import { throttle } from "lodash";
+import { cn } from "@/lib/utils";
 
 export function ElementController() {
 	const { editingInfo, setEditingInfo } = useContext(InspectorContext);
 	if (!editingInfo || !setEditingInfo) return null;
-
-	useEffect(() => {
-		// console.log(editingStyles, editingElementOffset);
-	}, [editingInfo.editingStyles]);
-	useEffect(() => {
-		if (editingInfo.referenceElement) {
-			setEditingInfo((draft) => {
-				const editingElement = draft.editingElement;
-				const referenceElementId = draft.referenceElement;
-				draft.editingState.isMoving = false;
-
-				if (editingElement && editingElement.dataset.uniqId && referenceElementId) {
-					let editingObj: any = null;
-					const removeRecursive = (arr: any[]) => {
-						for (let i = 0; i < arr.length; i++) {
-							if (arr[i].id === editingElement.dataset.uniqId) {
-								editingObj = arr[i];
-								arr.splice(i, 1);
-								return;
-							}
-							if (arr[i].children && arr[i].children.length > 0) {
-								removeRecursive(arr[i].children);
-							}
-						}
-					};
-					removeRecursive(draft.elementList);
-					const insertRecursive = (arr: any[]) => {
-						for (let i = 0; i < arr.length; i++) {
-							if (arr[i].id === referenceElementId) {
-								arr.splice(i, 0, editingObj);
-								return;
-							}
-							if (arr[i].children && arr[i].children.length > 0) {
-								insertRecursive(arr[i].children);
-							}
-						}
-					};
-					insertRecursive(draft.elementList);
-				}
-				draft.referenceElement = null;
-			});
-		}
-	}, [editingInfo.referenceElement]);
+	const { editingElement, editingNode } = editingInfo;
+	if (!editingElement || !editingNode) return null;
+	// useEffect(() => {
+	// 	console.log(editingInfo.referenceNode);
+	// }, [editingInfo.referenceNode]);
 	const resizeHandle = (mouseDownEvent: React.MouseEvent<HTMLElement>) => {
+		setEditingInfo((draft) => {
+			draft.editingState.isResizing = true;
+		});
 		const startX = mouseDownEvent.clientX;
 		const startY = mouseDownEvent.clientY;
 
-		const startWidth = decomposeValue(editingInfo.editingStyles.width)[0];
-		const startHeight = decomposeValue(editingInfo.editingStyles.height)[0];
+		const startWidth = editingElement.offsetWidth;
+		const startHeight = editingElement.offsetHeight;
 
-		const mouseMove = throttle((mouseMoveEvent: MouseEvent) => {
-			if (!editingInfo.editingElement) return;
+		const mouseMove = (mouseMoveEvent: MouseEvent) => {
+			if (!editingElement) return;
 			const newWidth = Math.max(0, startWidth + (mouseMoveEvent.clientX - startX));
 			const newHeight = Math.max(0, startHeight + (mouseMoveEvent.clientY - startY));
-			setEditingInfo((draft) => {
-				draft.editingStyles.width = `${newWidth}px`;
-				draft.editingStyles.height = `${newHeight}px`;
-			});
-		}, 200);
+			editingElement.style.width = `${newWidth}px`;
+			editingElement.style.height = `${newHeight}px`;
+		};
 		const mouseUp = () => {
+			setEditingInfo((draft) => {
+				draft.editingState.isResizing = false;
+				const node = findTreeItem(draft.elementList, { key: "id", value: editingNode.id });
+				node.props.style.width = editingElement.style.width;
+				node.props.style.height = editingElement.style.height;
+			});
 			document.removeEventListener("mousemove", mouseMove);
 			document.removeEventListener("mouseup", mouseUp);
 		};
@@ -86,18 +56,29 @@ export function ElementController() {
 		});
 
 		const mouseMove = (mouseMoveEvent: MouseEvent) => {
-			if (!editingInfo.editingElement) return;
+			if (!editingElement) return;
 			const mx = mouseMoveEvent.clientX - startX;
 			const my = mouseMoveEvent.clientY - startY;
-
-			editingInfo.editingElement.style.pointerEvents = "none";
-			editingInfo.editingElement.style.translate = `${mx}px ${my}px`;
+			if (editingElement.parentElement) {
+				editingElement.parentElement.style.pointerEvents = "none";
+				editingElement.parentElement.style.translate = `${mx}px ${my}px`;
+			}
+			// console.log(editingInfo.referenceNode);
 		};
 		const mouseUp = () => {
-			if (!editingInfo.editingElement) return;
+			if (editingElement.parentElement) {
+				editingElement.parentElement.style.pointerEvents = "";
+				editingElement.parentElement.style.translate = "";
+			}
 
-			editingInfo.editingElement.style.pointerEvents = "";
-			editingInfo.editingElement.style.translate = "";
+			setEditingInfo((draft) => {
+				draft.editingState.isMoving = false;
+				if (draft.referenceNode) {
+					const item = insertListBeforeById(draft.elementList, draft.referenceNode, editingNode);
+					console.log(item);
+				}
+			});
+
 			document.removeEventListener("mousemove", mouseMove);
 			document.removeEventListener("mouseup", mouseUp);
 		};
@@ -107,16 +88,23 @@ export function ElementController() {
 	};
 
 	return (
-		<span className="absolute border-2 rounded-md border-zinc-800 -inset-2">
+		<div
+			className={cn("absolute border-2 rounded-md border-zinc-800 -inset-2", {
+				"pointer-events-none": editingInfo.editingState.isMoving,
+			})}
+		>
 			<span
 				className="absolute left-[calc(50%-21px)] -top-[8px] w-[42px] h-[16px] cursor-move bg-zinc-800 rounded-md text-center"
 				onMouseDown={moveHandle}
 			>
 				<GripHorizontal className="justify-self-center" size={16} stroke="#fff" />
 			</span>
-			<span className="absolute z-10 -right-[4px] -bottom-[4px]" onMouseDown={resizeHandle}>
+			<span
+				className="absolute z-10 -right-[4px] -bottom-[4px] hover:cursor-nwse-resize"
+				onMouseDown={resizeHandle}
+			>
 				<ResizeIcon strokeWidth={6} size={20} stroke="#27272a" />
 			</span>
-		</span>
+		</div>
 	);
 }
