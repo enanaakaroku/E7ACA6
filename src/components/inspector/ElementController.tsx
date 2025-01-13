@@ -7,11 +7,11 @@ import { decomposeValue, findTreeItem, insertBeforeItemById, insertListBeforeByI
 import { throttle } from "lodash";
 import { cn } from "@/lib/utils";
 
-export function ElementController() {
+export function ElementController({ onMove }: { onMove: (e: React.MouseEvent<HTMLElement>) => void }) {
 	const { editingInfo, setEditingInfo } = useContext(InspectorContext);
 	if (!editingInfo || !setEditingInfo) return null;
 	const { editingElement, editingNode } = editingInfo;
-	if (!editingElement || !editingNode) return null;
+	// if (!editingElement || !editingNode) return null;
 	// useEffect(() => {
 	// 	console.log(editingInfo.referenceNode);
 	// }, [editingInfo.referenceNode]);
@@ -93,18 +93,20 @@ export function ElementController() {
 				"pointer-events-none": editingInfo.editingState.isMoving,
 			})}
 		>
-			<span
+			<div
 				className="absolute left-[calc(50%-21px)] -top-[8px] w-[42px] h-[16px] cursor-move bg-zinc-800 rounded-md text-center"
-				onMouseDown={moveHandle}
+				onMouseDown={(e) => {
+					onMove(e);
+				}}
 			>
 				<GripHorizontal className="justify-self-center" size={16} stroke="#fff" />
-			</span>
-			<span
+			</div>
+			<div
 				className="absolute z-10 -right-[4px] -bottom-[4px] hover:cursor-nwse-resize"
 				onMouseDown={resizeHandle}
 			>
 				<ResizeIcon strokeWidth={6} size={20} stroke="#27272a" />
-			</span>
+			</div>
 		</div>
 	);
 }

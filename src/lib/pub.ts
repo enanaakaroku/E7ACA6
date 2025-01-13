@@ -1,7 +1,7 @@
-import { ElementBoxStyle } from "@/components/inspector/declare";
+import { ElementBoxStyle, ITreeNode, TreeNode } from "@/components/inspector/declare";
 import { camelCase, capitalize, cloneDeep, flattenDeep, isPlainObject, startCase } from "lodash";
 import { editingStyleList } from "./utils";
-import { Children, ReactNode } from "react";
+import { Children, isValidElement, ReactElement, ReactNode } from "react";
 
 export function generateRandomId() {
 	return `${Math.random().toString(36).slice(2, 11)}`;
@@ -351,11 +351,17 @@ export function generateCSSDetailProperties<T extends "size" | "margin" | "paddi
 }
 
 export function formatDOMTree(nodes: ReactNode) {
-	let list: any[] = Children.toArray(nodes);
-	const setId = (arr: any[], pId?: string) => {
+	// 转换 ReactNode 为数组
+	const list: ReactNode[] = Children.toArray(nodes);
+
+	// 递归函数
+	const setId = (arr: ReactNode[], pId?: string): any[] => {
 		const resList: any[] = [];
+
 		arr.forEach((item, index) => {
 			const itemId = pId ? `${pId}-${index}` : `${index}`;
+
+			// 处理文本节点
 			if (typeof item === "string") {
 				resList.push({
 					id: itemId,
@@ -363,30 +369,159 @@ export function formatDOMTree(nodes: ReactNode) {
 				});
 				return;
 			}
-			const {
-				props: { children, ...restProps },
-				type,
-			} = item;
-			let newChildren: any = {};
-			if (Array.isArray(children) && children.length > 0) {
-				newChildren.children = setId(children, itemId);
-			} else if (typeof children === "string") {
-				newChildren.children = setId([children], itemId);
+
+			// 处理 React 元素
+			if (item && typeof item === "object" && "props" in item && "type" in item) {
+				const element = item as any;
+
+				const { children, ...restProps } = element.props;
+
+				// 递归处理子节点
+				let newChildren: any[] = [];
+				if (Array.isArray(children)) {
+					newChildren = setId(children, itemId);
+				} else if (typeof children === "string") {
+					newChildren = setId([children], itemId);
+				} else if (children) {
+					newChildren = setId([children], itemId);
+				}
+
+				resList.push({
+					props: {
+						...restProps,
+						key: itemId,
+						style: {}, // 默认样式
+					},
+					children: newChildren,
+					type: element.type,
+					id: itemId,
+				});
 			}
-			resList.push({
-				props: {
-					...restProps,
-					key: itemId,
-					style: {},
-				},
-				...newChildren,
-				type,
-				id: itemId,
-			});
 		});
+
 		return resList;
 	};
+
 	return setId(list);
+}
+
+export function convertReactNodeToTree(node: ReactNode, parentId: string = ""): ITreeNode[] {
+	const nodeList: ReactNode[] = Children.toArray(node); // 将 ReactNode 转换为数组
+	const tree: ITreeNode[] = nodeList.map((child, index) => {
+		const id = parentId ? `${parentId}-${index}` : `${index}`;
+
+		// 如果是文本节点
+		if (typeof child === "string" || typeof child === "number") {
+			return {
+				id,
+				type: null, // 文本节点没有 type
+				text: String(child), // 保存文本内容
+			};
+		}
+
+		// 如果是 ReactElement
+		if (isValidElement(child)) {
+			const {
+				type,
+				props: { children, ...restProps },
+			} = child as any;
+			const newChildren = children ? convertReactNodeToTree(children, id) : [];
+			return {
+				id,
+				type: typeof type === "string" ? type : null, // 保存 HTML 标签类型
+				props: { ...restProps }, // 移除 children 防止循环引用
+				children: newChildren,
+			};
+		}
+
+		// 其他情况（可能为 null、undefined 或无效节点）
+		return {
+			id,
+			type: null,
+			props: {},
+			children: [],
+		};
+	});
+
+	return tree;
+}
+
+export function convertChildNodesToTree(childNodes: NodeList): TreeNode[] {
+	const result: TreeNode[] = [];
+
+	// 遍历 NodeList 中的每个节点
+	for (let i = 0; i < childNodes.length; i++) {
+		const node = childNodes[i];
+		const nodeId = `rtenode-${Math.random().toString(36).substr(2, 9)}`;
+
+		// 处理元素节点
+		if (node.nodeType === Node.ELEMENT_NODE) {
+			const elementNode = node as Element;
+			const treeNode: TreeNode = {
+				type: elementNode.nodeName.toLowerCase(),
+				children: [],
+				id: nodeId,
+			};
+
+			// 提取属性
+			const attrs: { [key: string]: any } = {};
+			const attrsNameConvert = (name: string) => {
+				switch (name) {
+					case "class":
+						return "className";
+					case "for":
+						return "htmlFor";
+					default:
+						return name;
+				}
+			};
+			const styleValueConvert = (value: string) => {
+				const styleObject: { [key: string]: string } = {};
+				value.split(";").forEach((style) => {
+					const [property, val] = style.split(":");
+					if (property && val) {
+						const formattedProperty = camelCase(property);
+						styleObject[formattedProperty] = val.trim();
+					}
+				});
+				return styleObject;
+			};
+			if (elementNode.attributes) {
+				for (let j = 0; j < elementNode.attributes.length; j++) {
+					const attr = elementNode.attributes[j];
+					attrs[attrsNameConvert(attr.name)] =
+						attr.name === "style" ? styleValueConvert(attr.value) : attr.value;
+				}
+			}
+			treeNode.props = attrs;
+
+			// 递归处理子节点
+			const childTreeNodes = convertChildNodesToTree(elementNode.childNodes);
+			treeNode.children = childTreeNodes;
+
+			result.push(treeNode); // 添加到结果数组
+		} else if (node.nodeType === Node.TEXT_NODE && node.nodeValue?.trim()) {
+			// 处理文本节点
+			result.push({
+				type: "text",
+				text: node.nodeValue.trim(),
+				children: [],
+				id: nodeId,
+			});
+		}
+	}
+
+	return result;
+}
+
+export function parseDOMStringToDOMTree(htmlString: string) {
+	const parser = new DOMParser();
+	const doc = parser.parseFromString(htmlString, "text/html");
+	const rootNode = doc.body.childNodes; // 获取 DOM 树的根节点
+	console.dir(rootNode);
+
+	const treeStructure = convertChildNodesToTree(rootNode);
+	return treeStructure;
 }
 
 export function flatDOMTree(nodes: ReactNode) {

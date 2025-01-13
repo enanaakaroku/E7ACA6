@@ -2,7 +2,7 @@
 
 import { createContext, ReactNode, useEffect, useRef } from "react";
 
-import { formatDOMTree, initEditingStyles } from "@/lib/pub";
+import { formatDOMTree, initEditingStyles, convertReactNodeToTree, parseDOMStringToDOMTree } from "@/lib/pub";
 import { ElementBoxModel } from "./ElementBoxModel";
 import { ElementBoxStyle } from "./declare";
 import { useImmer } from "use-immer";
@@ -30,8 +30,7 @@ type TInspectorContext = {
 };
 export const InspectorContext = createContext<TInspectorContext>({});
 
-export const Inspector = ({ children }: { children: ReactNode }) => {
-	const rteContainer = useRef<HTMLElement>(null);
+export const Inspector = ({ children, html }: { children: ReactNode; html: string }) => {
 	const [editingInfo, setEditingInfo] = useImmer<TEditingInfo>({
 		editingElement: null,
 		editingNode: null,
@@ -41,7 +40,7 @@ export const Inspector = ({ children }: { children: ReactNode }) => {
 			isMoving: false,
 			isResizing: false,
 		},
-		elementList: formatDOMTree(children),
+		elementList: parseDOMStringToDOMTree(html),
 	});
 
 	useEffect(() => {
@@ -51,18 +50,7 @@ export const Inspector = ({ children }: { children: ReactNode }) => {
 	return (
 		<InspectorContext.Provider value={{ editingInfo, setEditingInfo }}>
 			<div className="border h-[600px] flex">
-				<section
-					className={cn(
-						"relative w-[680px]",
-						{
-							"select-none cursor-move": editingInfo.editingState.isMoving,
-						},
-						{ "cursor-nwse-resize": editingInfo.editingState.isResizing }
-					)}
-					ref={rteContainer}
-				>
-					<InspectorElements />
-				</section>
+				<InspectorElements />
 				<aside className="w-[260px] shrink-0 border-l px-2">
 					{editingInfo.editingElement && <ElementBoxModel />}
 				</aside>
