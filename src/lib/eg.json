@@ -1,0 +1,30 @@
+[
+	{
+		"type": "p",
+		"props": {
+			"className": "",
+			"style": {}
+		},
+		"id": "node-1",
+		"children": [
+			{
+				"type": "text",
+				"props": {
+					"className": "",
+					"style": {}
+				},
+				"id": "node-1-1",
+				"text": "随机文本"
+			}
+		]
+	},
+	{
+		"type": "div",
+		"props": {
+			"className": "",
+			"style": {}
+		},
+		"id": "node-2",
+		"children": []
+	}
+]

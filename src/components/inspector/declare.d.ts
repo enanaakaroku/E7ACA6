@@ -29,17 +29,25 @@ export type ElementBoxStyle = Pick<
 	| "position"
 >;
 
-interface ITreeNode {
-	id: string; // 唯一标识
-	type: string | null; // 节点类型，如 "div" 或 "p"
-	props?: Record<string, any>; // 组件的 props（包括 style、className 等）
-	children?: TreeNode[]; // 子节点列表
-	text?: string; // 文本节点的内容
+interface NodeProps {
+	className?: string;
+	style?: Record<string, string>;
+	[key: string]: any; // 允许额外的自定义属性
 }
-type TreeNode = {
+
+interface TextNode {
+	type: "text";
+	id?: string;
+	text: string;
+	sortable: boolean;
+}
+
+interface ElementNode {
 	type: string;
-	text?: string;
-	children: TreeNode[];
-	props?: { [key: string]: string }; // 用来存储元素的属性
-	id: string; // 唯一的ID
-};
+	props?: NodeProps;
+	id?: string;
+	children?: TreeNode[];
+	sortable: boolean;
+}
+
+type TreeNode = TextNode | ElementNode;

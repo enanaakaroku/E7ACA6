@@ -1,10 +1,11 @@
+"use client";
 import { createElement, useContext, useEffect, useRef } from "react";
 import { DropIndicator } from "./DropIndicator";
 import { InspectorContext } from "./Inspector";
-import { cn } from "@/lib/utils";
+import { canNotSortable, cn, inlineLevelElements } from "@/lib/utils";
 import { ElementController } from "./ElementController";
-import { findTreeItem } from "@/lib/pub";
 import { useImmer } from "use-immer";
+import { findTreeItem } from "@/lib/pub";
 
 export function InspectorElements() {
 	const rteContainer = useRef<HTMLElement>(null);
@@ -16,6 +17,9 @@ export function InspectorElements() {
 	const handleStartDrag = (e: React.MouseEvent<HTMLElement>, node: any) => {
 		e.stopPropagation(); // 防止冒泡
 		console.log(e, node);
+		setEditingInfo((draft) => {
+			draft.editingState.isMoving = true;
+		});
 		setDraggingNode(node);
 		setDraggingPosition({ x: e.clientX, y: e.clientY });
 	};
@@ -38,13 +42,15 @@ export function InspectorElements() {
 		console.log(dropTarget);
 
 		if (dropTarget) {
-			const newTreeData = moveNode(editingInfo.elementList, draggingNode, dropTarget);
 			setEditingInfo((draft) => {
-				draft.elementList = newTreeData;
+				draft.elementList = moveNode(draft.elementList, draggingNode, dropTarget);
 			});
 		}
 
 		setDraggingNode(null);
+		setEditingInfo((draft) => {
+			draft.editingState.isMoving = false;
+		});
 	};
 
 	const findDropTarget = (x: number, y: number, container: HTMLElement) => {
@@ -53,7 +59,7 @@ export function InspectorElements() {
 			const ele = el as HTMLElement;
 			const rect = ele.getBoundingClientRect();
 			if (x > rect.left && x < rect.right && y > rect.top && y < rect.bottom) {
-				return ele.dataset.uniqId; // 假设每个节点元素有 `data-node-id` 属性
+				return ele.dataset.uniqId;
 			}
 		}
 		return null;
@@ -69,19 +75,18 @@ export function InspectorElements() {
 				return [...acc, node];
 			}, []);
 
-		const insertNode = (nodes: any[]) =>
-			nodes.map((node) => {
-				if (node.id === parseInt(targetId, 10)) {
-					return {
-						...node,
-						children: [...node.children, { ...nodeToMove }],
-					};
+		const insertNode = (nodes: any[]) => {
+			for (let i = 0; i < nodes.length; i++) {
+				if (nodes[i].id === targetId) {
+					nodes.splice(i, 0, nodeToMove);
+					break;
 				}
-				if (node.children) {
-					node.children = insertNode(node.children);
+				if (nodes[i].children) {
+					insertNode(nodes[i].children);
 				}
-				return node;
-			});
+			}
+			return nodes;
+		};
 
 		const updatedTree = removeNode(tree);
 		return insertNode(updatedTree);
@@ -94,7 +99,7 @@ export function InspectorElements() {
 				{
 					"select-none cursor-move": editingInfo.editingState.isMoving,
 				},
-				{ "cursor-nwse-resize": editingInfo.editingState.isResizing }
+				{ "select-none cursor-nwse-resize": editingInfo.editingState.isResizing }
 			)}
 			id="rte-container"
 			ref={rteContainer}
@@ -104,10 +109,9 @@ export function InspectorElements() {
 			<TreeNodes nodes={editingInfo.elementList} onDragStart={handleStartDrag} />
 			{draggingNode && rteContainer.current && (
 				<div
+					className="w-fit h-fit"
 					style={{
 						position: "absolute",
-						width: "400px",
-						height: "100px",
 						top: draggingPosition.y - rteContainer.current?.getBoundingClientRect().top - 200,
 						left: draggingPosition.x - rteContainer.current?.getBoundingClientRect().left - 50,
 						pointerEvents: "none",
@@ -132,11 +136,17 @@ function TreeNodes({
 }) {
 	const { editingInfo, setEditingInfo } = useContext(InspectorContext);
 	const renderTreeNode = (node: any) => {
-		const { id, type, props, children, text, selected, sortable = true } = node;
+		const { id, type, props, children, text, sortable = true } = node;
 		if (text) return text;
 		const childElements = children ? children.map((child: any) => renderTreeNode(child)) : [];
-		if (type === "br") {
+		if (type === "br" || type === "hr") {
 			return createElement(type, props);
+		}
+		if (inlineLevelElements.includes(type)) {
+			return createElement(type, props, ...childElements);
+		}
+		if (!sortable) {
+			return createElement(type, props, ...childElements);
 		}
 		return (
 			<div
@@ -147,21 +157,21 @@ function TreeNodes({
 				onClick={(e) => {
 					e.stopPropagation();
 					const element = e.currentTarget.children[0];
-					// setEditingInfo((draft) => {
-					//   const node = findTreeItem(draft.elementList, { key: "id", value: id });
-					//   draft.editingNode = node;
-					//   draft.editingElement = element as any;
-					// });
+					setEditingInfo((draft) => {
+						draft.editingNode = node;
+						draft.editingElement = element as any;
+					});
 				}}
 			>
 				{createElement(type, props, ...childElements)}
-				{id === editingInfo?.referenceNode?.id && <DropIndicator />}
-
-				<ElementController
-					onMove={(e) => {
-						onDragStart && onDragStart(e, node);
-					}}
-				/>
+				{id === editingInfo.referenceNode?.id && <DropIndicator />}
+				{id === editingInfo.editingNode?.id && (
+					<ElementController
+						onMove={(e) => {
+							onDragStart && onDragStart(e, node);
+						}}
+					/>
+				)}
 			</div>
 		);
 	};
